@@ -13,7 +13,10 @@ function Invoke-Gcloud {
 }
 function Exists-Gcloud {
   param([string[]]$Arguments)
-  & gcloud @Arguments --project=$($cfg.project) --quiet 2>$null | Out-Null
+  # Function-scoped: a missing resource must not escalate gcloud's stderr to a
+  # terminating error under Windows PowerShell 5.1's $ErrorActionPreference='Stop'.
+  $ErrorActionPreference = 'SilentlyContinue'
+  & gcloud @Arguments --project=$($cfg.project) --quiet 2>&1 | Out-Null
   return $LASTEXITCODE -eq 0
 }
 $region=$cfg.region
