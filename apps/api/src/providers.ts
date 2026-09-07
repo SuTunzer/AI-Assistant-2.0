@@ -238,7 +238,7 @@ export async function speech(
   text: string,
   s: Settings,
 ): Promise<{ bytes: Buffer; format: 'wav' | 'mp3' }> {
-  const style = `Speak in a natural, warm woman's voice with a ${s.accent} accent. Calm, grounded, encouraging, about 145 words per minute. Read only the following script, without adding commentary.`;
+  const style = `Speak in a natural woman's voice with a ${s.accent} accent. Clear, direct and practical, warm but not soft, about 150 words per minute. Read only the following script, without adding commentary.`;
   if (s.voiceProvider === 'google-cloud') {
     const client = await new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],

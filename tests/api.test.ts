@@ -70,13 +70,11 @@ describe('private API behavior', () => {
   it('does not turn a temporary capture into memory and purges its input', async () => {
     const before = (await store.list('memories')).length;
     const c = (
-      await request(app)
-        .post('/api/captures')
-        .send({
-          text: 'Do not remember this.',
-          mode: 'temporary',
-          idempotencyKey: 'temporary-test-1',
-        })
+      await request(app).post('/api/captures').send({
+        text: 'Do not remember this.',
+        mode: 'temporary',
+        idempotencyKey: 'temporary-test-1',
+      })
     ).body;
     await runJob(c.jobId);
     await new Promise((r) => setTimeout(r, 80));

@@ -40,22 +40,22 @@ export function Today() {
     <div className="page-enter">
       <section className="welcome-card">
         <div className="welcome-copy">
-          <span className="eyebrow">A LITTLE CLARITY. A MEANINGFUL NEXT STEP.</span>
+          <span className="eyebrow">CAPTURE. DECIDE. DONE.</span>
           <h1>
-            Make room for
+            Know what to
             <br />
-            <em>what matters.</em>
+            <em>do next.</em>
           </h1>
           <p>
-            Your thoughts, your bigger picture, and the next small
-            <br className="desktop-only" /> step forward. All in one place.
+            Your notes, your tasks, and your next actions.
+            <br className="desktop-only" /> In one place.
           </p>
           <div className="button-row">
             <a className="button primary" href="#/capture">
-              <Mic size={17} /> Record a thought
+              <Mic size={17} /> Record a note
             </a>
             <a className="button secondary" href="#/listen">
-              <Headphones size={17} /> Create your briefing
+              <Headphones size={17} /> Build a briefing
             </a>
           </div>
         </div>
@@ -76,7 +76,7 @@ export function Today() {
             </svg>
           </div>
           <span className="floating-label">
-            <span className="tiny-dot" /> A little more grounded
+            <span className="tiny-dot" /> Private to you
           </span>
         </div>
       </section>
@@ -84,16 +84,16 @@ export function Today() {
         <Stat
           icon={<Target size={19} />}
           value={data.tasks.filter((t) => t.status === 'needsAction').length}
-          label="things to move forward"
+          label="open tasks"
         />
-        <Stat icon={<Leaf size={19} />} value={goals.length} label="goals to keep in view" />
-        <Stat icon={<Check size={19} />} value={done} label="tasks marked complete" />
+        <Stat icon={<Leaf size={19} />} value={goals.length} label="active goals" />
+        <Stat icon={<Check size={19} />} value={done} label="completed" />
       </div>
       <div className="today-columns">
         <section className="card tasks-card">
           <SectionTitle
-            title="One thing at a time"
-            description="Your actions, straight from Google Tasks."
+            title="Tasks"
+            description="Straight from Google Tasks."
             action={
               <div className="button-row compact">
                 <IconButton
@@ -183,15 +183,11 @@ export function Today() {
             ) : (
               <Empty
                 icon={<Check />}
-                title={
-                  data.connections.google
-                    ? 'A little breathing room'
-                    : 'Bring your actions into view'
-                }
+                title={data.connections.google ? 'No open tasks' : 'No tasks yet'}
               >
                 {data.connections.google
                   ? 'No open tasks in this view.'
-                  : 'Connect Google Tasks in Settings to see your current actions here.'}
+                  : 'Connect Google Tasks in Settings to see your tasks here.'}
               </Empty>
             )}
           </div>
@@ -207,15 +203,12 @@ export function Today() {
           <section className="card perspective-card">
             <div className="card-kicker">
               <Leaf size={17} />
-              <span>KEEP THE BIGGER PICTURE CLOSE</span>
+              <span>CURRENT GOAL</span>
             </div>
-            <h3>{goals[0]?.title || 'What are you making room for?'}</h3>
-            <p>
-              {goals[0]?.text ||
-                'Start with a thought about what matters to you. Your goals can grow from there.'}
-            </p>
+            <h3>{goals[0]?.title || 'No goals yet'}</h3>
+            <p>{goals[0]?.text || 'Add a goal in Memory and it shows up here.'}</p>
             <a className="text-button" href="#/memory">
-              Explore your memories <ArrowUpRight size={16} />
+              Open Memory <ArrowUpRight size={16} />
             </a>
           </section>
           <section className="card audio-invite">
@@ -224,11 +217,11 @@ export function Today() {
                 <i key={i} style={{ height: h }} />
               ))}
             </div>
-            <span className="eyebrow">A FRESH PERSPECTIVE, IN YOUR EARS</span>
-            <h3>Your day. Talked through.</h3>
-            <p>A personal mix of focus, encouragement and the bigger picture.</p>
+            <span className="eyebrow">DAILY BRIEFING</span>
+            <h3>Your day, briefed.</h3>
+            <p>Priorities, strategy and news in one audio track.</p>
             <a href="#/listen" className="button secondary">
-              Make a little space to listen <ArrowRight size={16} />
+              Build a briefing <ArrowRight size={16} />
             </a>
           </section>
         </aside>
@@ -236,8 +229,8 @@ export function Today() {
       {suggestions.length > 0 && (
         <section className="suggestion-section">
           <SectionTitle
-            title="A possible next step"
-            description="Ideas to consider. Nothing is added to your tasks until you choose."
+            title="Suggested actions"
+            description="Nothing is added to your tasks until you accept it."
           />
           <div className="suggestion-grid">
             {suggestions.map((p) => (
@@ -291,7 +284,7 @@ export function ProposalCard({ proposal: p }: { proposal: Proposal }) {
               variant="ghost"
               onClick={() => void run(() => api(`proposals/${p.id}/dismiss`, 'POST', {}))}
             >
-              I checked — dismiss this notice
+              Checked — dismiss
             </Button>
           )}
         </div>
@@ -335,7 +328,7 @@ function TaskDialog({ task: t, onClose }: { task: Task; onClose: () => void }) {
     [due, setDue] = useState(t.due || '');
   const endpoint = `tasks/${encodeURIComponent(t.listId)}/${encodeURIComponent(t.id)}`;
   return (
-    <Modal title="A little more detail" onClose={onClose}>
+    <Modal title="Task details" onClose={onClose}>
       <div className="modal-content">
         <label className="field">
           Task
@@ -359,7 +352,7 @@ function TaskDialog({ task: t, onClose }: { task: Task; onClose: () => void }) {
         </Button>
         {t.notes && <p className="note-block">{t.notes}</p>}
         <div className="section-title small">
-          <h3>Small steps</h3>
+          <h3>Steps</h3>
           <Tag>
             {t.subtasks.filter((s) => s.done).length}/{t.subtasks.length}
           </Tag>
@@ -414,7 +407,7 @@ function TaskDialog({ task: t, onClose }: { task: Task; onClose: () => void }) {
         >
           <input
             aria-label="New checklist step"
-            placeholder="Add one small step…"
+            placeholder="Add a step…"
             value={step}
             onChange={(e) => setStep(e.target.value)}
           />
@@ -440,7 +433,7 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
     [busy, setBusy] = useState(false),
     [proposal, setProposal] = useState<Proposal | undefined>(existing);
   return (
-    <Modal title={proposal ? 'Confirm your new task' : 'An action worth taking'} onClose={onClose}>
+    <Modal title={proposal ? 'Confirm new task' : 'New task'} onClose={onClose}>
       <form
         className="modal-content"
         onSubmit={async (e) => {
@@ -474,14 +467,14 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
         }}
       >
         <label className="field">
-          What would you like to do?
+          Task
           <input
             autoFocus
             required
             maxLength={1024}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Make the next step specific"
+            placeholder="What needs doing?"
           />
         </label>
         <label className="field">

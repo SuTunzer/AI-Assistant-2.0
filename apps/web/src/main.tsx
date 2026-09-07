@@ -10,8 +10,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: boolean 
   render() {
     return this.state.error ? (
       <main className="fatal-error">
-        <h1>Let's take a breath.</h1>
-        <p>The app hit a problem. Your saved memories are still in your workspace.</p>
+        <h1>Something broke.</h1>
+        <p>The app hit an error. Your saved data is safe. Reload to continue.</p>
         <button onClick={() => location.reload()}>Reload Steadier</button>
       </main>
     ) : (

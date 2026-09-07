@@ -43,7 +43,7 @@ export function Capture() {
           setCapture(c);
           if (c.state === 'complete') {
             void reload();
-            toast('Your reflection is ready.');
+            toast('Note processed.');
           }
         })
         .catch((e) => {
@@ -93,9 +93,9 @@ export function Capture() {
   return (
     <div className="view capture-view">
       <SectionTitle
-        eyebrow="A little space for you"
-        title="Let it all out."
-        description="The messy thoughts. The big ideas. Whatever is on your mind."
+        eyebrow="CAPTURE"
+        title="Capture a note."
+        description="Speak or type. The useful parts become memories."
       />
       <div className="capture-layout">
         <section className="card capture-card">
@@ -106,7 +106,7 @@ export function Capture() {
               disabled={active}
             >
               <Mic size={17} />
-              Talk it through
+              Record
             </button>
             <button
               className={tab === 'write' ? 'selected' : ''}
@@ -114,7 +114,7 @@ export function Capture() {
               disabled={active}
             >
               <NotebookPen size={17} />
-              Write it down
+              Type
             </button>
           </div>
           <div className="capture-mode">
@@ -126,11 +126,11 @@ export function Capture() {
                 onChange={(e) => setMode(e.target.checked ? 'temporary' : 'remember')}
               />
               <span className="switch" />
-              <span>Talk without remembering</span>
+              <span>Temporary (don't save)</span>
             </label>
             <p>
               {mode === 'temporary'
-                ? 'A private moment. This will not update your memories or tasks.'
+                ? 'This will not update your memories or tasks.'
                 : 'Useful details become editable memories. New tasks always need your approval.'}
             </p>
           </div>
@@ -153,12 +153,12 @@ export function Capture() {
               </div>
               <h3>
                 {rec.status === 'recording'
-                  ? 'You have the floor.'
+                  ? 'Recording.'
                   : rec.status === 'paused'
-                    ? 'Take your time.'
+                    ? 'Paused.'
                     : rec.draft
-                      ? 'Ready when you are.'
-                      : 'Start wherever you like.'}
+                      ? 'Ready to send.'
+                      : 'Ready to record.'}
               </h3>
               <div className="record-time">{time(rec.seconds)}</div>
               {active ? (
@@ -180,15 +180,15 @@ export function Capture() {
                       Discard
                     </Button>
                     <Button busy={busy} onClick={() => void send(rec.draft)}>
-                      Find the useful pieces <ArrowUpRight size={17} />
+                      Process note <ArrowUpRight size={17} />
                     </Button>
                   </div>
                 </>
               ) : (
                 <p className="muted small">
-                  Tap the microphone. Keep this screen open while recording.
+                  Tap the mic. Keep this screen open while recording.
                   <br />
-                  Up to 30 minutes, saved in pieces on this device.
+                  Up to 30 minutes, saved on this device.
                 </p>
               )}
               {appMode === 'demo' && (
@@ -201,20 +201,20 @@ export function Capture() {
           ) : (
             <div className="write-capture">
               <label htmlFor="mind-dump" className="sr-only">
-                What is on your mind?
+                Your note
               </label>
               <textarea
                 id="mind-dump"
-                placeholder="I've been thinking about…"
+                placeholder="Type your note…"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 maxLength={50000}
                 rows={12}
               />
               <div className="form-footer">
-                <span className="muted small">No need to organise it first.</span>
+                <span className="muted small">Plain text is fine.</span>
                 <Button busy={busy} disabled={!text.trim()} onClick={() => void send()}>
-                  {mode === 'temporary' ? 'Talk it through' : 'Find the useful pieces'}
+                  {mode === 'temporary' ? 'Send' : 'Process note'}
                   <ArrowUpRight size={17} />
                 </Button>
               </div>
@@ -223,18 +223,18 @@ export function Capture() {
         </section>
         <aside className="capture-aside">
           <div className="prompt-card">
-            <span className="eyebrow">A place to begin</span>
+            <span className="eyebrow">PROMPTS</span>
             <h3>
-              What is taking up
+              Not sure what
               <br />
-              space in your head?
+              to capture?
             </h3>
             <p>
-              Something you are avoiding. A conversation that stayed with you. A goal you want to
-              find your way back to.
+              A task you are avoiding. A decision you need to make. A change to a goal or to someone
+              you know.
             </p>
             <div className="prompt-line" />
-            <p className="serif">You do not have to make sense of it all before you start.</p>
+            <p className="serif">Dump it now, tidy it later.</p>
           </div>
           <div className="privacy-note">
             <Shield size={20} />
@@ -251,12 +251,12 @@ export function Capture() {
             <h3>
               {['queued', 'processing'].includes(capture.state) ? (
                 <>
-                  <LoaderCircle size={20} className="spin" /> Finding the useful pieces…
+                  <LoaderCircle size={20} className="spin" /> Processing…
                 </>
               ) : capture.state === 'failed' ? (
                 'This capture needs attention'
               ) : (
-                'What I learned'
+                'Extracted'
               )}
             </h3>
             <Tag>{capture.mode === 'temporary' ? 'Not remembered' : capture.state}</Tag>

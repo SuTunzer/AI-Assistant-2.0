@@ -276,7 +276,7 @@ export function createApp() {
         proposals: Proposal[] = [];
       if (config.APP_MODE === 'demo')
         text =
-          'This is a sample coaching response. Start by choosing one small action you can finish in the next fifteen minutes. What would make the next step feel easier?\n\nConnect your private workspace to get advice grounded in your own tasks and memories.';
+          'This is a sample response. Pick one action you can finish in the next fifteen minutes and start there. What is blocking the first step?\n\nConnect your private workspace for advice grounded in your own tasks and memories.';
       else {
         const r = await modelText(
           s.adviceProvider,

@@ -1,20 +1,26 @@
 @import '@fontsource-variable/dm-sans';
-@import '@fontsource/instrument-serif/400.css';
-@import '@fontsource/instrument-serif/400-italic.css';
 :root {
-  font-family: 'DM Sans Variable', Arial, sans-serif;
+  font-family:
+    'DM Sans Variable',
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Arial,
+    sans-serif;
   color: #273c33;
   background: #f7f7f2;
   font-synthesis: none;
-  font-size: 14px;
+  font-size: 15px;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
   --ink: #273c33;
-  --muted: #798078;
+  --muted: #6f776d;
   --green: #264f40;
   --dark: #173f36;
   --sage: #e9eddf;
   --border: #e7e9df;
   --peach: #f5e4d9;
-  --serif: 'Instrument Serif', Georgia, serif;
+  --serif: 'DM Sans Variable', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --radius: 15px;
 }
 * {
@@ -64,15 +70,16 @@ p {
 h1,
 h2,
 h3 {
-  font-weight: 400;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 h1,
 h2 {
   font-family: var(--serif);
 }
 h2 {
-  font-size: 38px;
-  letter-spacing: -0.6px;
+  font-size: 32px;
+  letter-spacing: -0.4px;
   margin-bottom: 10px;
 }
 h3 {
@@ -3856,5 +3863,107 @@ body:has(.persistent-player) .page-footer {
     animation-iteration-count: 1 !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Restrained display type: functional over editorial. */
+.welcome-copy h1 {
+  font-size: 42px;
+  letter-spacing: -0.6px;
+}
+.login-card h1 {
+  font-size: 44px;
+}
+.listening-art h3,
+.chat-welcome h3 {
+  font-size: 30px;
+  letter-spacing: -0.3px;
+}
+.prompt-card h3 {
+  font-size: 27px;
+}
+.memory-main h3 {
+  font-size: 22px;
+}
+.modal-header h2 {
+  font-size: 24px;
+}
+.empty-state h3,
+.perspective-card h3,
+.audio-invite h3,
+.tasks-card h2,
+.settings-section h3,
+.budget-card h3 {
+  font-size: 22px;
+}
+.eyebrow {
+  letter-spacing: 1.3px;
+}
+
+/* Phone readability: lift body copy off the tiny end of the scale. */
+@media (max-width: 767px) {
+  body {
+    font-size: 15px;
+  }
+  .prose,
+  .message .prose,
+  .episode-detail .prose {
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .task-body > span,
+  .memory-main p,
+  .checklist-row,
+  .checklist-row > span,
+  .module-option strong,
+  .segmented button,
+  .sidebar nav a {
+    font-size: 14px;
+  }
+  .conversation-starters button {
+    font-size: 12.5px;
+  }
+  .muted,
+  .small,
+  .small.muted,
+  .muted.small,
+  p.small,
+  .section-title .muted,
+  .view > .section-title .muted,
+  .settings-section > p,
+  .connection-row p,
+  .module-option small,
+  .task-meta,
+  .memory-tags,
+  .memory-card footer,
+  .episode-info > p,
+  .creation-note,
+  .chat-disclaimer,
+  .preview-note,
+  .privacy-note p,
+  .memory-footnote p {
+    font-size: 12.5px;
+    line-height: 1.65;
+  }
+  .card-kicker > span:not(.tag),
+  .eyebrow,
+  .welcome-copy .eyebrow,
+  .audio-invite .eyebrow {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  input:not([type='checkbox']):not([type='range']):not([type='file']),
+  textarea,
+  select,
+  .settings-grid input,
+  .settings-grid select,
+  .search-field input {
+    font-size: 16px !important;
+  }
+  .welcome-copy h1 {
+    font-size: 34px;
+  }
+  .view > .section-title h2 {
+    font-size: 26px;
   }
 }

@@ -85,7 +85,7 @@ export async function createEpisode(input: unknown) {
     title:
       body.modules.length === 1
         ? MODULES.find((m) => m.id === body.modules[0])!.label
-        : 'A little clarity for today',
+        : 'Daily briefing',
     modules: body.modules,
     minutes: body.minutes,
     durationSeconds: body.minutes * 60,
@@ -302,9 +302,9 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
     let script: string,
       title = e.title;
     if (config.APP_MODE === 'demo') {
-      title = 'A little clarity for today';
+      title = 'Daily briefing';
       script =
-        'This is a sample briefing from Steadier. In your connected workspace, this would be created from your own tasks and memories.\n\nStart with one useful action. You do not need to finish everything to make today count. Give the proposal outline fifteen uninterrupted minutes. Write something rough, then decide on the next step.\n\nKeep the bigger picture close. The point of getting organised is to make room for a life that feels meaningful. Your relationships, your health, and time to think are part of that.\n\nTake one small step, then build from there.';
+        'This is a sample briefing from Steadier. In your connected workspace, it would be built from your own tasks and memories.\n\nStart with one task. You do not have to finish everything today. Give the proposal outline fifteen uninterrupted minutes, write a rough version, then pick the next step.\n\nKeep the wider picture in view. Getting organised is a means to an end: more room for the work, people and decisions that matter. Your relationships, your health and your thinking time count.\n\nDo one thing, then the next.';
     } else {
       const r = await modelJson(
         s.adviceProvider,

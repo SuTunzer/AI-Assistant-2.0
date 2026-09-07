@@ -27,10 +27,10 @@ import { appMode } from './lib/api';
 import { configured, observeAuth, login } from './lib/auth';
 const navigation = [
   { id: 'today', label: 'Today', icon: Sun },
-  { id: 'capture', label: 'Mind dump', icon: Mic },
+  { id: 'capture', label: 'Capture', icon: Mic },
   { id: 'listen', label: 'Listen', icon: Headphones },
-  { id: 'memory', label: 'My memory', icon: BookOpen },
-  { id: 'adviser', label: 'My adviser', icon: MessageCircle },
+  { id: 'memory', label: 'Memory', icon: BookOpen },
+  { id: 'adviser', label: 'Adviser', icon: MessageCircle },
 ];
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
@@ -52,16 +52,16 @@ export default function App() {
       <div className="login-page">
         <Brand />
         <div className="login-card">
-          <p className="eyebrow">A private space for a fuller life</p>
+          <p className="eyebrow">Your private workspace</p>
           <h1>
-            A little clarity.
+            Capture. Decide.
             <br />
-            <em>A meaningful next step.</em>
+            <em>Get it done.</em>
           </h1>
           <p>
-            Your thoughts, your actions and your bigger picture.
+            Your notes, your tasks, and a daily briefing.
             <br />
-            Thoughtfully connected, just for you.
+            Private to you.
           </p>
           {waiting ? (
             <p>Opening your workspace…</p>
@@ -144,7 +144,7 @@ function Shell() {
         <a href="#/today" className="brand-link" aria-label="Steadier home">
           <Brand />
         </a>
-        <p className="brand-caption">A LITTLE MORE GROUNDED.</p>
+        <p className="brand-caption">YOUR SECOND BRAIN.</p>
         <nav aria-label="Main navigation">
           {navigation.map(({ id, label, icon: Icon }) => (
             <a
@@ -163,8 +163,9 @@ function Shell() {
           <div className="sidebar-note">
             <span className="mini-star">✳</span>
             <p>
-              Small steps.
-              <br />A life that feels like yours.
+              Pick the next action.
+              <br />
+              Then do it.
             </p>
           </div>
           {install && (
@@ -187,7 +188,7 @@ function Shell() {
           <div className="profile">
             <span className="avatar">{firstName === 'you' ? 'S' : firstName[0].toUpperCase()}</span>
             <div>
-              <strong>{firstName === 'you' ? 'Your space' : firstName + "'s space"}</strong>
+              <strong>{firstName === 'you' ? 'Your workspace' : firstName + "'s workspace"}</strong>
               <span>{appMode === 'demo' ? 'Preview workspace' : 'Personal workspace'}</span>
             </div>
             <span className="online-dot" />
@@ -205,7 +206,7 @@ function Shell() {
               <Menu size={22} />
             </IconButton>
             <span className="breadcrumb">
-              Your space <span>/</span> <strong>{label}</strong>
+              Workspace <span>/</span> <strong>{label}</strong>
             </span>
           </div>
           <div className="topbar-right">
@@ -218,7 +219,7 @@ function Shell() {
             </span>
             <span className="private-label">
               <span className="tiny-dot" />
-              Just for you
+              Private
             </span>
           </div>
         </header>
@@ -228,12 +229,12 @@ function Shell() {
               {greeting}
               {firstName !== 'you' ? ', ' + firstName : ''}.
             </span>
-            <span>One meaningful step is enough to begin.</span>
+            <span>Pick one thing and start.</span>
           </div>
           {appMode === 'demo' && (
             <div className="demo-banner">
               <span className="demo-pill">PREVIEW</span>
-              <span>Make yourself at home. You are exploring an example life.</span>
+              <span>Sample data, stored on this device. Nothing is sent to a server.</span>
               <a href="#/settings">
                 Connect your own <ArrowUpRight size={14} />
               </a>
@@ -261,7 +262,7 @@ function Shell() {
             <div className="page-loading">
               <div className="skeleton" />
               <div className="skeleton" />
-              <p>Opening your space…</p>
+              <p>Loading…</p>
             </div>
           ) : data ? (
             <>
@@ -281,16 +282,16 @@ function Shell() {
             </>
           ) : (
             <div className="card connection-empty">
-              <h2>Let's reconnect.</h2>
+              <h2>Can't reach your workspace.</h2>
               <p>
-                Your workspace could not be reached. Check the API address, account configuration
-                and your internet connection.
+                Check the API address, account configuration and your internet connection, then try
+                again.
               </p>
               <Button onClick={() => void reload()}>Try again</Button>
             </div>
           )}
           <footer className="page-footer">
-            <span>Made for your real, wonderfully unfinished life.</span>
+            <span>Private to you. Export or delete your data anytime.</span>
             <span>steadier.</span>
           </footer>
         </main>

@@ -59,7 +59,7 @@ self.addEventListener('push', (event) =>
         data = event.data?.json() || {};
       } catch {}
       await self.registration.showNotification('Your briefing is ready', {
-        body: 'A little clarity for your day. Tap to listen.',
+        body: 'Your audio briefing is ready. Tap to listen.',
         icon: base + 'icons/icon-192.png',
         badge: base + 'icons/icon-192.png',
         tag: 'steadier-ready',

@@ -6,20 +6,19 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Make room for what matters.' })).toBeVisible();
-  await expect(
-    page.getByText('You are exploring an example life.', { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Know what to do next.' })).toBeVisible();
+  await expect(page.getByText('Nothing is sent to a server.', { exact: false })).toBeVisible();
   await page.screenshot({
     path: 'test-results/' + info.project.name + '-today.png',
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Add task', exact: true }).click();
   await page
-    .getByRole('textbox', { name: 'What would you like to do?' })
+    .getByRole('dialog')
+    .getByRole('textbox', { name: 'Task', exact: true })
     .fill('Send the small first draft');
   await page.getByRole('button', { name: 'Review task', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('Confirm your new task');
+  await expect(page.getByRole('dialog')).toContainText('Confirm new task');
   await page.getByRole('button', { name: 'Confirm and add task' }).click();
   await expect(
     page.getByRole('button', { name: 'Complete Send the small first draft', exact: true }),
@@ -32,9 +31,13 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
   ).toHaveCount(0);
   await page.goto('/#/memory');
   await page.getByRole('button', { name: 'Add a memory' }).click();
-  await page.getByLabel('A short title').fill('Make time for a quiet walk');
   await page
-    .getByLabel('What should be understood?')
+    .getByRole('dialog')
+    .getByRole('textbox', { name: 'Title', exact: true })
+    .fill('Make time for a quiet walk');
+  await page
+    .getByRole('dialog')
+    .getByRole('textbox', { name: 'Details', exact: true })
     .fill('A quiet walk helps me find perspective.');
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Make time for a quiet walk' })).toBeVisible();
@@ -44,33 +47,30 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
     })
     .click();
   await page
-    .getByLabel('What should be understood?')
+    .getByRole('dialog')
+    .getByRole('textbox', { name: 'Details', exact: true })
     .fill('A ten minute walk helps me find perspective.');
   await page.getByRole('button', { name: 'Save & mark reviewed' }).click();
   await expect(
     page.getByText('A ten minute walk helps me find perspective.', { exact: true }),
   ).toBeVisible();
   await page.goto('/#/capture');
-  await page.getByRole('button', { name: 'Write it down' }).click();
-  await page.getByRole('checkbox', { name: 'Talk without remembering' }).check();
+  await page.getByRole('button', { name: 'Type', exact: true }).click();
+  await page.getByRole('checkbox', { name: "Temporary (don't save)" }).check();
   await page
-    .getByRole('textbox', { name: 'What is on your mind?' })
+    .getByRole('textbox', { name: 'Your note' })
     .fill('A temporary worry that should not become a memory.');
-  await page.getByRole('button', { name: 'Talk it through', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Send', exact: true }).last().click();
   await expect(page.getByText('This temporary note has not been added to memory.')).toBeVisible();
   await page.goto('/#/memory');
   await page.getByRole('textbox', { name: 'Search memories' }).fill('temporary worry');
   await expect(page.getByText('No memories match this search.')).toBeVisible();
   await page.goto('/#/listen');
   await page.getByRole('button', { name: 'Try a sample briefing' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'A little clarity for today', exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole('button', { name: 'Download A little clarity for today', exact: true })
-    .click();
-  await expect(page.getByText('Downloaded. Ready to listen without a connection.')).toBeVisible();
-  await page.getByRole('button', { name: 'Play A little clarity for today', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Daily briefing', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Download Daily briefing', exact: true }).click();
+  await expect(page.getByText('Downloaded for offline playback.')).toBeVisible();
+  await page.getByRole('button', { name: 'Play Daily briefing', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause audio', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Pause audio', exact: true }).click();
   await page.screenshot({
@@ -81,8 +81,8 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
   await page.reload();
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'A little clarity. On the go.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Play A little clarity for today', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Build a briefing.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Play Daily briefing', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause audio', exact: true })).toBeVisible();
   await context.setOffline(false);
   expect(errors).toEqual([]);
@@ -104,9 +104,9 @@ test('all screens fit the viewport and expose working controls', async ({ page }
       await expect(page.getByText('Sample response', { exact: true })).toBeVisible();
     }
     if (route === 'settings') {
-      await page.getByLabel('What should I call you?').fill('Alex');
+      await page.getByLabel('Name', { exact: true }).fill('Alex');
       await page.getByRole('button', { name: 'Save preferences', exact: true }).first().click();
-      await expect(page.getByText('Your preferences are saved.')).toBeVisible();
+      await expect(page.getByText('Settings saved.')).toBeVisible();
     }
   }
   await page.screenshot({
@@ -123,10 +123,10 @@ test('recovers a microphone recording after leaving the capture screen', async (
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/#/capture');
   await page.getByRole('button', { name: 'Start recording', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'You have the floor.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recording.' })).toBeVisible();
   await page.waitForTimeout(2200);
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Take your time.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paused.' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume', exact: true }).click();
   await page.goto('/#/today');
   await page.goto('/#/capture');

@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
               id: base,
               name: 'Steadier — your second brain',
               short_name: 'Steadier',
-              description: 'Clearer thoughts. Meaningful action. Your personal second brain.',
+              description: 'Capture notes, track your tasks, and get a daily audio briefing.',
               start_url: base,
               scope: base,
               display: 'standalone',

@@ -40,7 +40,7 @@ export function Settings() {
   }
   async function save() {
     setBusy(true);
-    await run(() => api('settings', 'PATCH', form), 'Your preferences are saved.');
+    await run(() => api('settings', 'PATCH', form), 'Settings saved.');
     setBusy(false);
   }
   async function downloadExport() {
@@ -61,9 +61,9 @@ export function Settings() {
   return (
     <div className="view settings-view">
       <SectionTitle
-        eyebrow="Make this your space"
-        title="A good fit for your life."
-        description="Your connections, your voice, your boundaries."
+        eyebrow="SETTINGS"
+        title="Settings"
+        description="Connections, models, voice, budget and data."
         action={
           <Button busy={busy} onClick={() => void save()}>
             <Check size={17} />
@@ -86,10 +86,10 @@ export function Settings() {
       <div className="settings-grid">
         <div className="settings-main">
           <section className="card settings-section">
-            <h3>A little about you</h3>
+            <h3>You</h3>
             <div className="form-pair">
               <label>
-                What should I call you?
+                Name
                 <input
                   value={form.name}
                   maxLength={80}
@@ -114,8 +114,8 @@ export function Settings() {
             </div>
           </section>
           <section className="card settings-section">
-            <h3>Your connections</h3>
-            <p className="muted">Bring your actions and your adviser into the same space.</p>
+            <h3>Connections</h3>
+            <p className="muted">Connect Google Tasks and your AI providers.</p>
             <div className="connection-row">
               <span className="provider-icon google">G</span>
               <div>
@@ -170,10 +170,10 @@ export function Settings() {
               </div>
             )}
             {[
-              ['anthropic', 'Anthropic', 'Thoughtful advice with Claude.'],
-              ['gemini', 'Google Gemini', 'Memory, transcription and an expressive voice.'],
-              ['openai', 'OpenAI', 'An alternative adviser and voice.'],
-              ['news', 'Brave Search', 'Current sources for your personal news.'],
+              ['anthropic', 'Anthropic', 'Advice and briefing scripts with Claude.'],
+              ['gemini', 'Google Gemini', 'Memory extraction, transcription and voice.'],
+              ['openai', 'OpenAI', 'Alternative adviser and voice.'],
+              ['news', 'Brave Search', 'Sources for the news module.'],
             ].map(([id, label, desc]) => (
               <div className="connection-row" key={id}>
                 <span className={'provider-icon ' + id}>{label[0]}</span>
@@ -198,8 +198,8 @@ export function Settings() {
             ))}
           </section>
           <section className="card settings-section">
-            <h3>The mind behind your adviser</h3>
-            <p className="muted">Choose a model with a known price so spending can be estimated.</p>
+            <h3>Models</h3>
+            <p className="muted">Pick models with a known price so spending can be estimated.</p>
             <div className="form-pair">
               <label>
                 Advice provider
@@ -267,7 +267,7 @@ export function Settings() {
             </div>
           </section>
           <section className="card settings-section">
-            <h3>A voice you want to listen to</h3>
+            <h3>Voice</h3>
             <div className="form-pair">
               <label>
                 Voice provider
@@ -326,12 +326,12 @@ export function Settings() {
               </label>
             </div>
             <p className="small muted">
-              Kore is the starting choice for an English woman's voice. Voice and accent quality
-              depend on the selected provider.
+              Kore is the default English woman's voice. Voice and accent quality depend on the
+              provider.
             </p>
           </section>
           <section className="card settings-section">
-            <h3>Your world, informed</h3>
+            <h3>News</h3>
             <label>
               News interests <span className="muted">(one per line)</span>
               <textarea
@@ -341,15 +341,15 @@ export function Settings() {
               />
             </label>
             <p className="small muted">
-              Briefings link to their sources. News is available when your search account permits
-              storing and using the results in audio.
+              Briefings link to their sources. News works only when your search account permits
+              storing and reusing results in audio.
             </p>
           </section>
         </div>
         <aside className="settings-aside">
           <section className="card budget-card">
-            <span className="eyebrow">A little peace of mind</span>
-            <h3>Your monthly budget</h3>
+            <span className="eyebrow">BUDGET</span>
+            <h3>Monthly budget</h3>
             <div className="budget-number">
               <Money amount={data.budget.spentAud} />
               <small> of A${data.budget.limitAud}</small>
@@ -412,7 +412,7 @@ export function Settings() {
             </details>
           </section>
           <section className="card settings-section">
-            <h3>Keep only what helps</h3>
+            <h3>Data retention</h3>
             <label>
               Original transcripts
               <select
@@ -437,8 +437,8 @@ export function Settings() {
               </select>
             </label>
             <p className="small muted">
-              Original recordings are removed after processing. Temporary conversations do not
-              update memory. AI providers apply their own account retention policies.
+              Recordings are deleted after processing. Temporary conversations never update memory.
+              AI providers apply their own account retention policies.
             </p>
             <Button
               variant="secondary"
@@ -453,7 +453,7 @@ export function Settings() {
             </Button>
           </section>
           <section className="card settings-section">
-            <h3>Always your information</h3>
+            <h3>Your data</h3>
             <Button
               variant="ghost"
               onClick={() =>
@@ -554,7 +554,7 @@ export function Settings() {
                   onClick={async () => {
                     const ok = await run(
                       () => api('backups/' + b.id + '/restore', 'POST', { confirm: true }),
-                      'Missing memories restored. Review them in My memory.',
+                      'Missing memories restored. Review them in Memory.',
                     );
                     if (ok) setBackups(null);
                   }}
@@ -618,11 +618,11 @@ export function Settings() {
         </Modal>
       )}
       {deleteOpen && (
-        <Modal title="Delete your remembered context?" onClose={() => setDelete(false)}>
+        <Modal title="Delete all memories?" onClose={() => setDelete(false)}>
           <div className="form-stack">
             <p>
-              This removes memories, captures and their derived audio. Your Google Tasks are kept.
-              This cannot be undone.
+              This removes every memory, capture and any audio built from them. Your Google Tasks
+              are kept. This cannot be undone.
             </p>
             <label>
               Type DELETE MY MEMORIES
@@ -655,10 +655,7 @@ export function Settings() {
       {disconnect && (
         <Modal title="Disconnect Google Tasks?" onClose={() => setDisconnect(false)}>
           <div className="form-stack">
-            <p>
-              Steadier will stop reading and updating your tasks. Your Google Tasks remain in
-              Google.
-            </p>
+            <p>Steadier stops reading and updating your tasks. They stay in Google.</p>
             <Button
               variant="danger"
               onClick={async () => {

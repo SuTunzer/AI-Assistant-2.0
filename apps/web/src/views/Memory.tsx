@@ -37,9 +37,9 @@ export function Memory() {
   return (
     <div className="view">
       <SectionTitle
-        eyebrow="Your second brain"
-        title="The threads of your life."
-        description="An understanding that grows with you. Always yours to correct."
+        eyebrow="MEMORY"
+        title="Memory"
+        description="What the adviser knows about you. Edit or delete anything."
         action={
           <Button onClick={() => setEdit('new')}>
             <Plus size={17} />
@@ -52,7 +52,7 @@ export function Memory() {
           <Search size={18} />
           <input
             aria-label="Search memories"
-            placeholder="Find a thought, person or goal…"
+            placeholder="Search memories…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -129,7 +129,7 @@ export function Memory() {
       ) : (
         <Empty
           icon={<BookOpen size={28} />}
-          title={review ? 'All caught up.' : 'A little space for what matters.'}
+          title={review ? 'All caught up.' : 'No memories yet.'}
           action={
             <Button variant="secondary" onClick={() => setEdit('new')}>
               Add your first memory
@@ -139,15 +139,15 @@ export function Memory() {
           {query
             ? 'No memories match this search.'
             : review
-              ? 'Your memories have been reviewed.'
-              : 'Start with a goal, a person, or something you want your adviser to understand.'}
+              ? 'Every memory has been reviewed.'
+              : 'Add a goal, a person, or context you want the adviser to use.'}
         </Empty>
       )}
       <div className="memory-footnote">
         <Network size={18} />
         <p>
-          Memories carry their source and certainty. Your corrections take priority; affected
-          briefings are removed so old advice does not keep playing.
+          Each memory keeps its source and certainty. Your edits win over AI guesses, and briefings
+          built on a changed memory are removed.
         </p>
       </div>
       {edit && (
@@ -193,10 +193,7 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
     if (r) onClose();
   }
   return (
-    <Modal
-      title={memory ? 'Your memory, your words.' : 'Something worth remembering.'}
-      onClose={onClose}
-    >
+    <Modal title={memory ? 'Edit memory' : 'New memory'} onClose={onClose}>
       <div className="form-stack">
         <div className="form-pair">
           <label>
@@ -219,11 +216,11 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
           </label>
         </div>
         <label>
-          A short title
+          Title
           <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} />
         </label>
         <label>
-          What should be understood?
+          Details
           <textarea
             rows={6}
             value={text}
@@ -280,8 +277,8 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
           <p className="small muted">
             Updated {new Date(memory.updatedAt).toLocaleString()}.{' '}
             {memory.sourceRetained
-              ? 'Source transcript temporarily retained.'
-              : 'Original transcript is not retained.'}
+              ? 'Source transcript kept temporarily.'
+              : 'Source transcript not retained.'}
           </p>
         )}
         {confirm ? (

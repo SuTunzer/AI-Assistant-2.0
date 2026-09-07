@@ -10,7 +10,7 @@ export async function notifyReady(episodeId: string) {
         item.subscription,
         JSON.stringify({
           title: 'Your briefing is ready',
-          body: 'A little clarity for your day. Tap to listen.',
+          body: 'Your audio briefing is ready. Tap to listen.',
           episodeId,
         }),
         { TTL: 3600, urgency: 'normal', timeout: 10000 },

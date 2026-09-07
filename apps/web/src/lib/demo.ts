@@ -132,12 +132,12 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
         title:
           body.modules.length === 1 && body.modules[0] === 'custom'
             ? body.custom.slice(0, 80)
-            : 'A little clarity for today',
+            : 'Daily briefing',
         modules: body.modules,
         minutes: body.minutes,
         durationSeconds: 45,
         script:
-          'This is a sample briefing from Steadier. In your connected workspace, this would be created from your own tasks and memories.\n\nStart with one useful action. You do not need to finish everything to make today count. Give the proposal outline fifteen uninterrupted minutes. Write something rough, then decide on the next step.\n\nKeep the bigger picture close. The point of getting organised is to make room for a life that feels meaningful. Your relationships, your health, and time to think are part of that.\n\nTake one small step, then build from there.',
+          'This is a sample briefing from Steadier. In your connected workspace, it would be built from your own tasks and memories.\n\nStart with one task. You do not have to finish everything today. Give the proposal outline fifteen uninterrupted minutes, write a rough version, then pick the next step.\n\nKeep the wider picture in view. Getting organised is a means to an end: more room for the work, people and decisions that matter. Your relationships, your health and your thinking time count.\n\nDo one thing, then the next.',
         status: 'ready',
         jobId: 'demo-' + crypto.randomUUID(),
         pinned: false,
@@ -162,7 +162,7 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
     } else if (method === 'DELETE') state.episodes = state.episodes.filter((e) => e.id !== p[1]);
   } else if (p[0] === 'chat')
     result = {
-      text: 'This is a sample response, rather than AI advice about your life.\n\nTry choosing one task that would make the rest of today feel lighter. Give its first step fifteen minutes, without trying to get it perfect.\n\nYour connected adviser will use your actual tasks and memories to make this specific to you.',
+      text: 'This is a sample response, not real advice about your situation.\n\nPick the one task that would clear the most weight off the rest of today. Give its first step fifteen minutes and do not aim for perfect.\n\nOnce connected, the adviser uses your real tasks and memories to make this specific to you.',
       memoryIds: [],
       proposals: [],
       costAud: 0,

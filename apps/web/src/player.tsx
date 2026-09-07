@@ -117,7 +117,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await localPut('audio', e.id, { blob, episode: e });
       setDownloaded((v) => new Set(v).add(e.id));
       if (navigator.storage?.persist) void navigator.storage.persist();
-      toast('Downloaded. Ready to listen without a connection.');
+      toast('Downloaded for offline playback.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The download failed.');
     } finally {
@@ -154,7 +154,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: episode.title,
       artist: 'Steadier',
-      album: 'A little clarity for your day',
+      album: 'Steadier briefing',
       artwork: [
         {
           src: new URL(import.meta.env.BASE_URL + 'icons/icon-512.png', location.origin).href,
@@ -234,7 +234,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           </div>
           <div className="player-title">
             <strong>{episode.title}</strong>
-            <span>{episode.demo ? 'Sample episode' : 'Your personal briefing'}</span>
+            <span>{episode.demo ? 'Sample episode' : 'Briefing'}</span>
           </div>
           <div className="player-transport">
             <IconButton label="Back 15 seconds" onClick={() => seek(-15)}>

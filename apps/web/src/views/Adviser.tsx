@@ -56,8 +56,8 @@ export function Adviser() {
     <div className="view adviser-view">
       <div className="adviser-heading">
         <div>
-          <p className="eyebrow">In your corner</p>
-          <h2>A little perspective.</h2>
+          <p className="eyebrow">ADVISER</p>
+          <h2>Adviser</h2>
         </div>
         <Button variant="ghost" disabled={busy} onClick={() => setMessages([])}>
           <Plus size={16} />
@@ -69,8 +69,8 @@ export function Adviser() {
           {(
             [
               ['act', 'Help me act'],
-              ['reflect', 'Hear me out'],
-              ['strategy', 'Think it through'],
+              ['reflect', 'Talk it through'],
+              ['strategy', 'Strategise'],
               ['challenge', 'Challenge me'],
             ] as const
           ).map(([key, label]) => (
@@ -114,21 +114,21 @@ export function Adviser() {
               <MessageCircle size={30} />
             </span>
             <h3>
-              You do not have to
+              What do you
               <br />
-              figure it all out alone.
+              want to work on?
             </h3>
             <p>
-              Bring a stuck moment, a difficult decision,
+              Ask about your tasks, a decision,
               <br />
-              or a thought you have not quite untangled.
+              or something you are stuck on.
             </p>
             <div className="conversation-starters">
               {[
                 'What should I focus on today?',
-                'I keep putting something off.',
-                'Help me see the bigger picture.',
-                'A relationship is on my mind.',
+                'I keep putting off a task.',
+                'Review my goals and priorities.',
+                'Help me plan a hard conversation.',
               ].map((q) => (
                 <button key={q} onClick={() => void send(q)}>
                   {q}
@@ -183,7 +183,7 @@ export function Adviser() {
             {busy && (
               <div className="thinking" role="status">
                 <LoaderCircle className="spin" size={18} />
-                Thinking this through…
+                Thinking…
               </div>
             )}
             <div ref={end} />
@@ -199,7 +199,7 @@ export function Adviser() {
       >
         <textarea
           aria-label="Message your adviser"
-          placeholder="What is on your mind?"
+          placeholder="Ask anything…"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={2}
@@ -212,7 +212,7 @@ export function Adviser() {
           }}
         />
         <div>
-          <a href="#/capture" aria-label="Record a reflection" className="icon-button">
+          <a href="#/capture" aria-label="Record a note" className="icon-button">
             <Mic size={19} />
           </a>
           <span className="small muted">
@@ -229,8 +229,8 @@ export function Adviser() {
         </div>
       </form>
       <p className="chat-disclaimer">
-        A reflective coach. Interpretations are possibilities to explore; they are not clinical
-        diagnoses. {appMode === 'demo' ? 'Preview responses are prewritten.' : ''}
+        Not a clinician. Interpretations are possibilities, not diagnoses.{' '}
+        {appMode === 'demo' ? 'Preview responses are prewritten.' : ''}
       </p>
     </div>
   );

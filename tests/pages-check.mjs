@@ -11,7 +11,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(url);
-  await page.getByRole('heading', { name: 'Make room for what matters.' }).waitFor();
+  await page.getByRole('heading', { name: 'Know what to do next.' }).waitFor();
   const manifest = await page.evaluate(async () => {
     const link = document.querySelector('link[rel="manifest"]');
     return (await fetch(link.href)).json();
@@ -21,10 +21,10 @@ try {
   assert.equal(scope, url);
   await context.setOffline(true);
   await page.reload();
-  await page.getByRole('heading', { name: 'Make room for what matters.' }).waitFor();
+  await page.getByRole('heading', { name: 'Know what to do next.' }).waitFor();
   await page.goto(url + '#/listen');
   await page.getByRole('button', { name: 'Try a sample briefing' }).click();
-  await page.getByRole('button', { name: 'Play A little clarity for today', exact: true }).click();
+  await page.getByRole('button', { name: 'Play Daily briefing', exact: true }).click();
   await page.getByRole('button', { name: 'Pause audio', exact: true }).waitFor();
   assert.deepEqual(errors, []);
   console.log('Repository-path install manifest, service worker and offline playback passed.');

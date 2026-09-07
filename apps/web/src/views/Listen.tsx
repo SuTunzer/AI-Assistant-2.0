@@ -68,7 +68,7 @@ export function Listen() {
     setModules(t.modules);
     setMinutes(t.minutes);
     setCustom(t.custom);
-    toast('Mix loaded. Make it yours, then create your briefing.');
+    toast('Mix loaded.');
   }
   const episodes = data.episodes
     .filter((e) => tab === 'all' || (tab === 'saved' ? e.pinned : player.downloaded.has(e.id)))
@@ -76,19 +76,17 @@ export function Listen() {
   return (
     <div className="view listen-view">
       <SectionTitle
-        eyebrow="Your thoughts, with perspective"
-        title="A little clarity. On the go."
-        description="A personal briefing for your run, commute, or a quieter moment."
+        eyebrow="BRIEFING"
+        title="Build a briefing."
+        description="Audio for your commute or run. Choose the topics and the length."
       />
       <div className="listen-layout">
         <section className="card mix-card">
           <div className="section-title">
-            <h3>What would help today?</h3>
+            <h3>Topics</h3>
             <SlidersHorizontal size={19} />
           </div>
-          <p className="muted small">
-            Choose a few threads. We will weave them into one conversation.
-          </p>
+          <p className="muted small">Pick topics. They are combined into one track.</p>
           <div className="module-grid">
             {MODULES.map((m) => (
               <label
@@ -116,20 +114,20 @@ export function Listen() {
           </div>
           {modules.includes('custom') && (
             <label className="custom-subject">
-              What should this explore?
+              What should it cover?
               <textarea
                 rows={3}
                 value={custom}
                 onChange={(e) => setCustom(e.target.value)}
                 maxLength={2000}
-                placeholder="Help me think through a career change, using what you know about my goals…"
+                placeholder="Prep me for a difficult conversation with my manager, using what you know…"
               />
             </label>
           )}
           <div className="length-control">
             <div>
               <span>
-                <Clock size={16} /> Make a little time
+                <Clock size={16} /> Length
               </span>
               <strong>
                 {minutes} <small>min</small>
@@ -188,11 +186,11 @@ export function Listen() {
             <ArrowUpRight size={19} />
           </Button>
           <p className="creation-note">
-            Fresh Google Tasks are fetched when generation starts.
+            Google Tasks are refreshed when generation starts.
             <br />
             {appMode === 'demo'
               ? 'The preview plays a short example, whatever length you select.'
-              : 'Usually a few minutes. Longer mixes can take longer.'}
+              : 'Usually a few minutes. Longer mixes take longer.'}
           </p>
         </section>
         <aside className="listen-aside">
@@ -208,19 +206,19 @@ export function Listen() {
                 />
               ))}
             </div>
-            <span className="eyebrow">A voice in your corner</span>
+            <span className="eyebrow">AUDIO</span>
             <h3>
-              Less noise.
+              Listen on
               <br />
-              More perspective.
+              the move.
             </h3>
-            <p>Your life, thoughtfully connected.</p>
+            <p>Built from your tasks and memories.</p>
           </div>
           <div className="card notification-card">
             <Bell size={20} />
             <div>
-              <h4>Carry on with your day.</h4>
-              <p className="small muted">Get a quiet notification when your audio is ready.</p>
+              <h4>Get notified when it's ready.</h4>
+              <p className="small muted">A push notification when the audio is done.</p>
               <Button
                 variant="ghost"
                 onClick={() =>
@@ -246,7 +244,7 @@ export function Listen() {
                     <span>
                       {t.name}
                       <small>
-                        {t.minutes} min · {t.modules.length} threads
+                        {t.minutes} min · {t.modules.length} topics
                       </small>
                     </span>
                     <ArrowUpRight size={16} />
@@ -264,17 +262,17 @@ export function Listen() {
         </aside>
       </div>
       <section className="episode-library">
-        <SectionTitle title="Your listening shelf" description="Pick up where you left off." />
+        <SectionTitle title="Library" />
         <div className="filter-tabs">
           {(['all', 'saved', 'offline'] as const).map((t) => (
             <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
-              {t === 'all' ? 'All episodes' : t === 'saved' ? 'Kept for later' : 'On this device'}
+              {t === 'all' ? 'All episodes' : t === 'saved' ? 'Saved' : 'Offline'}
             </button>
           ))}
         </div>
         {!episodes.length ? (
-          <Empty icon={<Headphones size={27} />} title="Your next perspective starts here.">
-            Create a mix above. Your episodes will be waiting here.
+          <Empty icon={<Headphones size={27} />} title="No episodes yet.">
+            Build a briefing above and it shows up here.
           </Empty>
         ) : (
           <div className="episodes">
@@ -364,15 +362,15 @@ export function Listen() {
         )}
       </section>
       {save && (
-        <Modal title="Keep this mix." onClose={() => setSave(false)}>
+        <Modal title="Save mix" onClose={() => setSave(false)}>
           <div className="form-stack">
             <label>
-              A name for next time
+              Mix name
               <input
                 value={name}
                 maxLength={80}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Before a big day"
+                placeholder="Morning focus"
               />
             </label>
             <Button
@@ -421,7 +419,7 @@ function EpisodeDetails({ episode: e, onClose }: { episode: Episode; onClose: ()
         </div>
         {e.sources.length > 0 && (
           <div className="source-list">
-            <h4>Sources behind your news</h4>
+            <h4>News sources</h4>
             {e.sources.map((s) => (
               <External key={s.id} url={s.url}>
                 {s.title}
@@ -430,7 +428,7 @@ function EpisodeDetails({ episode: e, onClose }: { episode: Episode; onClose: ()
           </div>
         )}
         <div className="feedback-bar">
-          <span className="small muted">How did this land?</span>
+          <span className="small muted">Feedback</span>
           {(['useful', 'irrelevant', 'incorrect', 'too_soft', 'too_pushy'] as const).map((k) => (
             <button
               key={k}
