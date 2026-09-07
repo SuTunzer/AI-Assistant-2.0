@@ -2,13 +2,35 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+
+// The commit this bundle was built from. CI exposes it as GITHUB_SHA; locally we
+// ask git. Never fail the build over a missing SHA.
+function commit() {
+  const fromCi = process.env.GITHUB_SHA;
+  if (fromCi) return fromCi.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+  } catch {
+    return 'nogit';
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const base = env.VITE_BASE_PATH || '/';
   if (!base.startsWith('/') || !base.endsWith('/') || base.includes('..'))
     throw new Error('VITE_BASE_PATH must start and end with a slash.');
-  const version = Date.now().toString(36);
+  const built = new Date();
+  const version = built.getTime().toString(36);
+  // Shown in the app footer so a running tab can be identified at a glance.
+  const buildInfo = {
+    version,
+    commit: commit(),
+    at: built.toISOString().slice(0, 16).replace('T', ' ') + 'Z',
+  };
   if (mode === 'production' && env.VITE_APP_MODE === 'local')
     throw new Error(
       'Local authentication must never be built for public hosting. Choose cloud or demo mode.',
@@ -17,6 +39,7 @@ export default defineConfig(({ mode }) => {
     root: 'apps/web',
     envDir: process.cwd(),
     base,
+    define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
     plugins: [
       react(),
       {

@@ -4040,3 +4040,35 @@ body:has(.persistent-player) .page-footer {
     inset: -13px -10px;
   }
 }
+
+/* Build stamp: identifies the exact bundle a tab is running, so a change that
+   looks missing can be told apart from a stale service-worker cache. */
+.build-stamp {
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+  color: #767b6f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: all;
+}
+@media (max-width: 767px) {
+  /* The fixed bottom nav measures 65px, so content needs more than that
+     beneath it or the footer scrolls underneath and is never readable. */
+  main {
+    padding-bottom: 92px;
+  }
+  body:has(.persistent-player) .page-footer {
+    margin-bottom: 76px;
+  }
+  .page-footer {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .build-stamp {
+    order: 3;
+    flex-basis: 100%;
+    font-size: 10px;
+  }
+}

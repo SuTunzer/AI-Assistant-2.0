@@ -25,6 +25,7 @@ import { Settings } from './views/Settings';
 import { Brand, Button, IconButton } from './components/ui';
 import { appMode } from './lib/api';
 import { configured, observeAuth, login } from './lib/auth';
+import { buildLabel } from './build-info';
 const navigation = [
   { id: 'today', label: 'Today', icon: Sun },
   { id: 'capture', label: 'Capture', icon: Mic },
@@ -292,6 +293,9 @@ function Shell() {
           )}
           <footer className="page-footer">
             <span>Private to you. Export or delete your data anytime.</span>
+            <span className="build-stamp" title={buildLabel}>
+              {buildLabel}
+            </span>
             <span>steadier.</span>
           </footer>
         </main>
