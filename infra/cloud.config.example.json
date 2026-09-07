@@ -1,0 +1,11 @@
+{
+  "project": "your-google-cloud-project",
+  "region": "australia-southeast1",
+  "ownerUid": "your-firebase-user-uid",
+  "webOrigin": "https://YOUR-USERNAME.github.io",
+  "webAppUrl": "https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/",
+  "googleClientId": "your-client.apps.googleusercontent.com",
+  "vapidPublicKey": "public-key-from-prepare-cloud",
+  "vapidSubject": "mailto:you@example.com",
+  "newsStorageRightsConfirmed": false
+}

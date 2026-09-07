@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.data/
+playwright-report/
+test-results/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+infra/terraform.tfstate*
+infra/*.tfvars
+infra/.terraform/
+infra/cloud.config.json

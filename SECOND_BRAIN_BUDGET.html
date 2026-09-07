@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Second Brain — monthly budget planner</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#20312e;background:#f3f5f1;color-scheme:light;line-height:1.55}
+    *{box-sizing:border-box}body{margin:0}main{max-width:1100px;margin:auto;padding:40px 24px 64px}h1{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1.15;margin:0 0 16px;letter-spacing:-.04em}p{max-width:78ch}.eyebrow{color:#416659;font-weight:700;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}.intro{color:#4d615b}.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:start}.panel{border:1px solid #d4dfd8;background:white;border-radius:18px;padding:26px}.panel h2{font-size:1.15rem;margin:0 0 20px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:18px}label{display:block;font-size:.9rem;font-weight:600}input,select{display:block;width:100%;font:inherit;margin-top:6px;padding:10px;border:1px solid #9aada3;border-radius:8px;background:white;color:#20312e}input:focus,select:focus,button:focus{outline:3px solid #6dac9b;outline-offset:2px}.full{grid-column:1/-1}.help{font-size:.8rem;color:#64776f;margin-top:5px}.hero-number{font-size:3rem;font-weight:750;letter-spacing:-.04em;line-height:1.1;margin:12px 0}.status{padding:10px 14px;border-radius:8px;background:#e6f2e9;color:#205135}.over{background:#fff0df;color:#805010}.bar{height:12px;background:#e6ece8;border-radius:20px;overflow:hidden;margin:16px 0}.fill{height:100%;background:#327d61;transition:width .15s}.fill.over-budget{background:#b56b2b}table{border-collapse:collapse;width:100%;font-size:.88rem;margin-top:20px}td,th{text-align:left;padding:9px 0;border-bottom:1px solid #e4e9e5}td:last-child,th:last-child{text-align:right}tfoot td{font-weight:700;border-bottom:0}.small{font-size:.82rem;color:#5b6d64}.sources{margin-top:24px}.sources a{color:#245d4a}details{margin-top:22px}summary{cursor:pointer;font-weight:650}button{border:1px solid #8fa69a;background:#f5f9f5;color:#294e40;border-radius:8px;padding:9px 13px;font:inherit;cursor:pointer;margin:12px 8px 0 0}.error{color:#a23428;font-size:.85rem}footer{border-top:1px solid #cfdbd2;margin-top:30px;padding-top:18px}.hidden{display:none}@media(max-width:740px){main{padding:24px 16px}.grid{grid-template-columns:1fr}.panel{padding:20px}.hero-number{font-size:2.6rem}}@media print{body{background:white}main{padding:0}.panel{break-inside:avoid}.grid{grid-template-columns:1fr 1fr}button{display:none}details{display:block}}
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Second Brain / planning companion</p>
+  <h1>What does your daily briefing cost?</h1>
+  <p class="intro">Explore the A$20 monthly target. This estimates new audio generation, text advice and a small private backend. It runs entirely in this file: no account access, API calls or data collection. Rates were checked on 7 September 2026; replace assumptions with measured usage before launch.</p>
+  <div class="grid">
+    <section class="panel" aria-labelledby="usage-title">
+      <h2 id="usage-title">Your usage</h2>
+      <form id="budget-form">
+      <div class="fields">
+        <label>New episodes per month<input id="episodes" type="number" min="0" max="300" step="1" value="30"><span class="help">Replays do not generate new AI charges.</span></label>
+        <label>Minutes per episode<input id="minutes" type="number" min="1" max="60" step="1" value="10"></label>
+        <label class="full">Claude advice model<select id="model"><option value="sonnet">Sonnet 5 — everyday budget setting</option><option value="opus">Opus 5 — premium comparison</option></select><span class="help">Applies to briefing writing and text chat in this comparison.</span></label>
+        <label>Text chat replies per month<input id="chats" type="number" min="0" max="3000" step="1" value="90"><span class="help">Spoken chat replies need an extra voice allowance.</span></label>
+        <label>Speech output rate (USD / 1M tokens)<input id="speechRate" type="number" min="0" max="200" step="0.5" value="10"><span class="help">10 for the selected Gemini Flash speech estimate.</span></label>
+        <label>Capture and memory allowance (USD)<input id="capture" type="number" min="0" max="100" step="0.05" value="0.50"><span class="help">Default assumes about 150 recorded minutes.</span></label>
+        <label>News allowance (USD)<input id="news" type="number" min="0" max="100" step="0.05" value="0.75"><span class="help">Default: 120 searches plus summarisation. Adjust for usage and required rights.</span></label>
+      </div>
+      <details>
+        <summary>Context, hosting and conversion assumptions</summary>
+        <div class="fields" style="margin-top:16px">
+          <label>Input tokens per briefing<input id="briefInput" type="number" min="0" max="1000000" step="500" value="6000"></label>
+          <label>Reasoning/output overhead per briefing<input id="briefOverhead" type="number" min="0" max="100000" step="100" value="1000"><span class="help">Added to 200 script tokens per minute. Billable reasoning is not free.</span></label>
+          <label>Input tokens per chat reply<input id="chatInput" type="number" min="0" max="1000000" step="500" value="4000"></label>
+          <label>Total output tokens per chat reply<input id="chatOutput" type="number" min="0" max="100000" step="100" value="700"><span class="help">Includes any billable reasoning.</span></label>
+          <label>Infrastructure allowance (USD)<input id="infra" type="number" min="0" max="100" step="0.25" value="1"><span class="help">A target under usage allowances, not a quoted hosting plan.</span></label>
+          <label>Retry / repair reserve (%)<input id="retry" type="number" min="0" max="100" step="1" value="10"></label>
+          <label>AUD for one USD<input id="fx" type="number" min="0.01" max="10" step="0.01" value="1.60"><span class="help">Planning assumption, not a live exchange rate.</span></label>
+          <label>Tax, fees and uncertainty buffer (%)<input id="buffer" type="number" min="0" max="100" step="1" value="20"></label>
+          <label class="full">Monthly target (AUD)<input id="target" type="number" min="0" max="10000" step="1" value="20"></label>
+        </div>
+      </details>
+      <button type="button" id="six-minutes">Try six-minute episodes</button>
+      <button type="reset">Reset assumptions</button>
+      <p id="validation" class="error hidden" role="alert">Enter valid non-negative values within the displayed limits.</p>
+      </form>
+    </section>
+    <section class="panel" aria-labelledby="estimate-title">
+      <h2 id="estimate-title">Estimated monthly total</h2>
+      <div aria-live="polite" aria-atomic="true">
+        <p class="hero-number" id="total">A$19.64</p>
+        <p class="status" id="status">Near your monthly target</p>
+      </div>
+      <div class="bar" aria-hidden="true"><div class="fill" id="fill"></div></div>
+      <p class="small" id="volume"></p>
+      <table>
+        <thead><tr><th scope="col">Component</th><th scope="col">USD / month</th></tr></thead>
+        <tbody id="breakdown"></tbody>
+        <tfoot><tr><td>Total before conversion</td><td id="usd-total"></td></tr></tfoot>
+      </table>
+      <p class="small" id="conversion"></p>
+      <p class="small">The app should reserve costs before each job and stop accepting new paid work when its allowance is exhausted. This calculator does not impose a billing cap. Additional context, extra generations, voice retries, paid news rights and usage outside the app may change the actual bill.</p>
+      <details>
+        <summary>How the estimate works</summary>
+        <p class="small">Speech uses 25 audio tokens per second and approximately 200 script text tokens per minute, with speech text input priced at US$0.50 per million. Choosing another speech model may also change its text input rate; this comparison leaves that small input rate unchanged. Each briefing includes the selected context and output overhead. Chat estimates include the selected context and all billable output. Retry reserve is applied to the AI/news subtotal, then infrastructure is added. Currency conversion and the extra buffer apply to the total.</p>
+        <p class="small">Sonnet: US$2 input / US$10 output per million tokens. Opus: US$5 / US$25. Context caching discounts and promotional credits are excluded. Capture, news and infrastructure are explicit allowances; their own workloads are not automatically inferred from episode count.</p>
+      </details>
+    </section>
+  </div>
+  <footer>
+    <p class="small">This is an engineering budget estimate. It excludes development labour, a paid domain, subscription upgrades and any news licence surcharge. One user, usage-based hosting and modest stored data are assumed. A ten-minute daily habit is close to the target; a six-minute mix leaves more room for chat.</p>
+    <p class="small sources">Source rates: <a href="https://platform.claude.com/docs/en/models/overview">Claude</a> · <a href="https://cloud.google.com/text-to-speech/pricing">Google speech</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing">Gemini processing</a> · <a href="https://api-dashboard.search.brave.com/documentation/pricing">News search</a> · <a href="https://cloud.google.com/run/pricing">Cloud Run</a>. Source links contact those websites only when you open them.</p>
+  </footer>
+</main>
+<script id="budget-model">
+function calculateBudget(v) {
+  const rates = v.model === 'opus' ? {input:5, output:25} : {input:2, output:10};
+  const audioMinutes = v.episodes * v.minutes;
+  const speech = audioMinutes * 60 * 25 * v.speechRate / 1000000;
+  const speechInput = audioMinutes * 200 * 0.5 / 1000000;
+  const scripts = v.episodes * (v.briefInput * rates.input + (v.briefOverhead + v.minutes * 200) * rates.output) / 1000000;
+  const chat = v.chats * (v.chatInput * rates.input + v.chatOutput * rates.output) / 1000000;
+  const aiSubtotal = speech + speechInput + scripts + chat + v.capture + v.news;
+  const retries = aiSubtotal * v.retry / 100;
+  const usd = aiSubtotal + retries + v.infra;
+  const aud = usd * v.fx * (1 + v.buffer / 100);
+  return {audioMinutes, speech, speechInput, scripts, chat, retries, usd, aud};
+}
+</script>
+<script>
+(() => {
+  const form = document.getElementById('budget-form');
+  const ids = ['episodes','minutes','chats','speechRate','capture','news','briefInput','briefOverhead','chatInput','chatOutput','infra','retry','fx','buffer','target'];
+  const money = n => '$' + n.toFixed(2);
+  function update() {
+    const valid = form.checkValidity();
+    document.getElementById('validation').classList.toggle('hidden', valid);
+    if (!valid) return;
+    const v = {model:document.getElementById('model').value};
+    for (const id of ids) {
+      const field = document.getElementById(id);
+      if (field.value.trim() === '') {
+        document.getElementById('validation').classList.remove('hidden');
+        return;
+      }
+      v[id] = Number(field.value);
+    }
+    const r = calculateBudget(v);
+    const over = r.aud > v.target;
+    const remaining = Math.abs(v.target - r.aud);
+    document.getElementById('total').textContent = 'A' + money(r.aud);
+    const status = document.getElementById('status');
+    status.classList.toggle('over', over);
+    status.textContent = over ? 'A' + money(remaining) + ' above your target' : 'A' + money(remaining) + ' left within your target';
+    const fill = document.getElementById('fill');
+    fill.style.width = (v.target > 0 ? Math.min(100,r.aud/v.target*100) : r.aud > 0 ? 100 : 0) + '%';
+    fill.classList.toggle('over-budget',over);
+    document.getElementById('volume').textContent = v.episodes + ' new episodes · ' + r.audioMinutes + ' audio minutes · ' + v.chats + ' text replies';
+    const items = [['Speech output',r.speech],['Speech text input',r.speechInput],['Briefing scripts',r.scripts],['Text chat',r.chat],['Capture / memory allowance',v.capture],['News allowance',v.news],['Retry / repair reserve',r.retries],['Infrastructure allowance',v.infra]];
+    const tbody = document.getElementById('breakdown');
+    tbody.replaceChildren();
+    for (const [label,amount] of items) {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      const cost = document.createElement('td');
+      name.textContent = label; cost.textContent = money(amount);
+      tr.append(name,cost); tbody.append(tr);
+    }
+    document.getElementById('usd-total').textContent = money(r.usd);
+    document.getElementById('conversion').textContent = 'US' + money(r.usd) + ' × ' + v.fx.toFixed(2) + ' AUD/USD × ' + (1+v.buffer/100).toFixed(2) + ' buffer = A' + money(r.aud) + '.';
+  }
+  form.addEventListener('input',update);
+  form.addEventListener('change',update);
+  form.addEventListener('submit',event=>event.preventDefault());
+  form.addEventListener('reset',()=>setTimeout(update,0));
+  document.getElementById('six-minutes').addEventListener('click',()=>{document.getElementById('minutes').value='6';update();});
+  update();
+})();
+</script>
+</body>
+</html>

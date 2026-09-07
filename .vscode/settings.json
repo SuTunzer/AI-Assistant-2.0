@@ -1,0 +1,6 @@
+{
+  "terminal.integrated.env.windows": {
+    "PATH": "${env:PATH};C:\\Program Files\\nodejs;C:\\Users\\hughe\\AppData\\Roaming\\npm"
+  },
+  "liveServer.settings.port": 5501
+}
