@@ -20,6 +20,7 @@ import { logout } from '../lib/auth';
 import { clearPrivateCache } from '../lib/idb';
 import { enableNotifications } from '../lib/notifications';
 import { Button, Modal, SectionTitle, Tag, Money } from '../components/ui';
+import { buildInfo, buildLabel, loadLatestBuild } from '../build-info';
 import type { Settings as SettingsType, ConnectionStatus } from '../types';
 import { MODEL_PRICES } from '../../../../packages/domain/src/budget';
 export function Settings() {
@@ -524,6 +525,27 @@ export function Settings() {
                 Sign out
               </Button>
             ) : null}
+          </section>
+          <section className="card settings-section">
+            <h3>This build</h3>
+            <p>Check this against the version you expect before reporting a change as missing.</p>
+            <div className="build-panel">
+              <code className="build-version">{buildInfo.version}</code>
+              <dl className="build-meta">
+                <dt>Commit</dt>
+                <dd>{buildInfo.commit}</dd>
+                <dt>Built</dt>
+                <dd>{buildInfo.at || 'dev server'}</dd>
+              </dl>
+            </div>
+            <Button variant="ghost" onClick={() => void loadLatestBuild()}>
+              <RotateCcw size={16} />
+              Load the latest build
+            </Button>
+            <p className="small muted">
+              Offline files are kept until every tab closes, so a published change can stay hidden.
+              This clears them and reloads. Full stamp: {buildLabel}
+            </p>
           </section>
         </aside>
       </div>

@@ -8,7 +8,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  MoreHorizontal,
   Leaf,
   Target,
   RefreshCw,
@@ -38,48 +37,14 @@ export function Today() {
   );
   return (
     <div className="page-enter">
-      <section className="welcome-card">
-        <div className="welcome-copy">
-          <span className="eyebrow">CAPTURE. DECIDE. DONE.</span>
-          <h1>
-            Know what to
-            <br />
-            <em>do next.</em>
-          </h1>
-          <p>
-            Your notes, your tasks, and your next actions.
-            <br className="desktop-only" /> In one place.
-          </p>
-          <div className="button-row">
-            <a className="button primary" href="#/capture">
-              <Mic size={17} /> Record a note
-            </a>
-            <a className="button secondary" href="#/listen">
-              <Headphones size={17} /> Build a briefing
-            </a>
-          </div>
-        </div>
-        <div className="welcome-illustration" aria-hidden="true">
-          <div className="orbit one" />
-          <div className="orbit two" />
-          <div className="orbit three" />
-          <span className="orbit-dot a" />
-          <span className="orbit-dot b" />
-          <span className="orbit-dot c" />
-          <div className="plant">
-            <svg viewBox="0 0 150 160">
-              <path d="M75 145C78 100 75 70 72 30" fill="none" stroke="#6b8263" strokeWidth="3" />
-              <path d="M76 116C29 113 20 86 21 67C61 67 77 89 76 116" fill="#a1b18b" />
-              <path d="M77 90C118 83 132 51 125 33C87 41 76 60 77 90" fill="#6b8263" />
-              <path d="M72 62C41 60 33 41 35 23C62 28 74 41 72 62" fill="#c2c9a7" />
-              <path d="M72 34C61 11 74 0 83 0C91 17 82 29 72 34" fill="#8f9f77" />
-            </svg>
-          </div>
-          <span className="floating-label">
-            <span className="tiny-dot" /> Private to you
-          </span>
-        </div>
-      </section>
+      <div className="quick-actions">
+        <a className="button primary" href="#/capture">
+          <Mic size={17} /> Record a note
+        </a>
+        <a className="button secondary" href="#/listen">
+          <Headphones size={17} /> Build a briefing
+        </a>
+      </div>
       <div className="stat-grid">
         <Stat
           icon={<Target size={19} />}
@@ -176,7 +141,7 @@ export function Today() {
                     </div>
                   </button>
                   <IconButton label={`Open ${t.title}`} onClick={() => setSelected(t)}>
-                    <MoreHorizontal size={19} />
+                    <ChevronRight size={20} />
                   </IconButton>
                 </div>
               ))
