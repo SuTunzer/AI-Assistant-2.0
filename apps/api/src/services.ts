@@ -29,8 +29,17 @@ export function recordBase(id: string = randomUUID()) {
   const now = new Date().toISOString();
   return { id, createdAt: now, updatedAt: now, version: 1 };
 }
+// Google returns 404 for these ids on keys that never used them, which
+// surfaced as a briefing failing only after the script had been written.
+const RETIRED_MODELS: Record<string, string> = {
+  'gemini-2.5-flash': 'gemini-3.5-flash',
+  'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+};
 export async function settings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...(await store.get('settings', 'main')) };
+  const saved = { ...DEFAULT_SETTINGS, ...(await store.get('settings', 'main')) };
+  for (const key of ['adviceModel', 'extractionModel', 'transcriptionModel'] as const)
+    saved[key] = RETIRED_MODELS[saved[key]] ?? saved[key];
+  return saved;
 }
 export async function saveSettings(value: unknown) {
   const parsed = settingsSchema.parse(value);
@@ -43,8 +52,8 @@ export async function saveSettings(value: unknown) {
   if (
     !parsed.adviceModel.startsWith(prefix) ||
     !MODEL_PRICES[parsed.adviceModel] ||
-    !['gemini-2.5-flash', 'gemini-2.5-flash-lite'].includes(parsed.extractionModel) ||
-    !['gemini-2.5-flash', 'gemini-2.5-flash-lite'].includes(parsed.transcriptionModel)
+    !['gemini-3.5-flash', 'gemini-3.5-flash-lite'].includes(parsed.extractionModel) ||
+    !['gemini-3.5-flash', 'gemini-3.5-flash-lite'].includes(parsed.transcriptionModel)
   )
     throw new DomainError('UNPRICED_MODEL', 'Choose a supported, priced model.');
   if (

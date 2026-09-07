@@ -10,25 +10,38 @@ export interface ModelResult {
   outputTokens: number;
   usd: number;
 }
-export async function providerFetch(url: string, init: RequestInit, timeout = 90000) {
+// `label` names the provider and model, so a failure says which of the several
+// calls behind one briefing broke rather than just "the provider".
+export async function providerFetch(
+  label: string,
+  url: string,
+  init: RequestInit,
+  timeout = 90000,
+) {
   let response: Response;
   try {
     response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
   } catch {
+    console.error(`[provider] ${label} - no response within ${timeout}ms`);
     throw new DomainError(
       'PROVIDER_UNAVAILABLE',
-      'The provider did not respond in time. Your saved information is safe.',
+      `${label} did not respond in time. Your saved information is safe.`,
       503,
     );
   }
-  if (!response.ok)
+  if (!response.ok) {
+    // Provider error bodies describe the request, not its contents, and they
+    // name the fix (a retired model id, say). Logged, never shown to the user.
+    const detail = await response.text().catch(() => '');
+    console.error(`[provider] ${label} - HTTP ${response.status}: ${detail.slice(0, 300)}`);
     throw new DomainError(
       response.status === 429 ? 'PROVIDER_RATE_LIMIT' : 'PROVIDER_UNAVAILABLE',
       response.status === 429
-        ? 'The provider is busy. Please try again shortly.'
-        : `The provider could not complete this request (${response.status}). Check the connection and model settings.`,
+        ? `${label} is busy. Please try again shortly.`
+        : `${label} could not complete this request (${response.status}). Check the connection and model settings.`,
       503,
     );
+  }
   return response;
 }
 function jsonText(text: string) {
@@ -69,7 +82,7 @@ export async function modelText(
     output = 0;
   if (provider === 'anthropic') {
     const data = await (
-      await providerFetch('https://api.anthropic.com/v1/messages', {
+      await providerFetch(`anthropic ${model}`, 'https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,6 +112,7 @@ export async function modelText(
   } else if (provider === 'gemini') {
     const data = await (
       await providerFetch(
+        `gemini ${model}`,
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: 'POST',
@@ -128,7 +142,7 @@ export async function modelText(
       );
   } else {
     const data = await (
-      await providerFetch('https://api.openai.com/v1/chat/completions', {
+      await providerFetch(`openai ${model}`, 'https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({
@@ -172,6 +186,7 @@ export async function transcribe(bytes: Buffer, mime: string, s: Settings) {
     );
   const data = await (
     await providerFetch(
+      `gemini ${s.transcriptionModel} (transcription)`,
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.transcriptionModel)}:generateContent`,
       {
         method: 'POST',
@@ -269,6 +284,7 @@ export async function speech(
     if (!key)
       throw new DomainError('PROVIDER_NOT_CONNECTED', 'Connect OpenAI for this voice.', 409);
     const response = await providerFetch(
+      `openai ${s.voiceModel} (speech)`,
       'https://api.openai.com/v1/audio/speech',
       {
         method: 'POST',
@@ -289,6 +305,7 @@ export async function speech(
   if (!key) throw new DomainError('PROVIDER_NOT_CONNECTED', 'Connect Gemini for this voice.', 409);
   const data = await (
     await providerFetch(
+      `gemini ${s.voiceModel} (speech)`,
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.voiceModel)}:generateContent`,
       {
         method: 'POST',
@@ -318,6 +335,7 @@ export async function embed(text: string): Promise<number[] | undefined> {
   try {
     const data = await (
       await providerFetch(
+        'gemini gemini-embedding-001 (embedding)',
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent',
         {
           method: 'POST',
@@ -358,6 +376,7 @@ export async function searchNews(interests: string[]): Promise<Source[]> {
     }).toString();
     const data = await (
       await providerFetch(
+        'brave news search',
         url.href,
         { headers: { Accept: 'application/json', 'X-Subscription-Token': key } },
         12000,

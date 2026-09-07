@@ -214,7 +214,7 @@ export function Settings() {
                       p === 'anthropic'
                         ? 'claude-sonnet-5'
                         : p === 'gemini'
-                          ? 'gemini-2.5-flash'
+                          ? 'gemini-3.5-flash'
                           : 'gpt-4.1-mini',
                     );
                   }}
@@ -251,8 +251,8 @@ export function Settings() {
                   value={form.extractionModel}
                   onChange={(e) => update('extractionModel', e.target.value)}
                 >
-                  <option>gemini-2.5-flash-lite</option>
-                  <option>gemini-2.5-flash</option>
+                  <option>gemini-3.5-flash-lite</option>
+                  <option>gemini-3.5-flash</option>
                 </select>
               </label>
               <label>
@@ -261,8 +261,8 @@ export function Settings() {
                   value={form.transcriptionModel}
                   onChange={(e) => update('transcriptionModel', e.target.value)}
                 >
-                  <option>gemini-2.5-flash</option>
-                  <option>gemini-2.5-flash-lite</option>
+                  <option>gemini-3.5-flash</option>
+                  <option>gemini-3.5-flash-lite</option>
                 </select>
               </label>
             </div>

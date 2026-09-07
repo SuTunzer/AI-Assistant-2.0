@@ -3,8 +3,8 @@ export const MODEL_PRICES: Record<string, { input: number; output: number }> = {
   'claude-sonnet-5': { input: 2, output: 10 },
   'claude-opus-5': { input: 5, output: 25 },
   'claude-haiku-4-5-20251001': { input: 1, output: 5 },
-  'gemini-2.5-flash': { input: 0.3, output: 2.5 },
-  'gemini-2.5-flash-lite': { input: 0.1, output: 0.4 },
+  'gemini-3.5-flash': { input: 1.5, output: 9 },
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
   'gpt-4.1': { input: 2, output: 8 },
   'gpt-4.1-mini': { input: 0.4, output: 1.6 },
 };

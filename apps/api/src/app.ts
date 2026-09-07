@@ -130,7 +130,7 @@ export function createApp() {
         gemini: ['Kore', 'Aoede', 'Leda', 'Zephyr', 'Sulafat'],
         openai: ['coral', 'nova', 'marin', 'cedar'],
       },
-      pricedAt: '2026-09-07',
+      pricedAt: '2026-09-08',
     }),
   );
   app.patch('/api/settings', async (req, res) =>
