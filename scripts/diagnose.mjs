@@ -118,7 +118,14 @@ const report = {
     monthlyBudgetAud: settings.monthlyBudgetAud,
   },
   connectedProviders: connected,
-  budget: budgets.map((b) => ({ month: b.id, spentAud: b.spentAud, reservedAud: b.reservedAud })),
+  // The ledger stores settled spend plus a map of still-open reservations, one
+  // per job in flight. A reservation left behind by a failed job holds budget.
+  budget: budgets.map((b) => ({
+    month: b.id,
+    spent: b.spent ?? 0,
+    openReservations: Object.keys(b.reservations || {}).length,
+    reserved: Object.values(b.reservations || {}).reduce((a, n) => a + Number(n || 0), 0),
+  })),
   counts: {
     jobs: jobs.length,
     captures: captures.length,
@@ -177,7 +184,10 @@ console.log('SETTINGS');
 for (const [k, v] of Object.entries(report.settings)) line(k, v);
 line('connected', connected.length ? connected.join(', ') : 'none');
 for (const b of report.budget)
-  line('budget ' + b.month, `spent ${b.spentAud} reserved ${b.reservedAud}`);
+  line(
+    'budget ' + b.month,
+    `spent ${b.spent.toFixed(4)}  reserved ${b.reserved.toFixed(4)} across ${b.openReservations} open`,
+  );
 
 const section = (name, rows, format) => {
   console.log('\n' + name.toUpperCase() + '  (' + rows.length + ')');
