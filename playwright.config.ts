@@ -9,7 +9,10 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
     launchOptions: {
-      args: ['--use-fake-device-for-media-stream'],
+      // Bundled Chromium needs the fake UI flag as well; without it
+      // getUserMedia rejects with NotSupportedError and the recording tests
+      // fail on Linux CI while passing against installed Chrome locally.
+      args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
       ...(process.platform === 'win32' ? { channel: 'chrome' } : {}),
     },
   },

@@ -74,3 +74,31 @@ After deploying the HTTPS site and installing it in Chrome:
 ## Not yet verified with your accounts
 
 Actual Google OAuth consent/refresh, Google API ETag behavior against your task data, paid provider outputs, news subscription rights, Cloud IAM/deployment, Firebase owner login on Pages, Samsung lock-screen playback and push delivery. These need the accounts/device described in SETUP.md. There is no background morning schedule; generation is on demand as requested.
+
+## Diagnosing a failed briefing or capture
+
+Every failure is written to the record it belongs to, not to the Cloud Run log.
+A briefing that stops with "Needs attention" stores the reason on its episode
+and job document, so the logs stay empty while the app shows an error. Read that
+stored state with:
+
+```
+npm run diagnose
+```
+
+Authenticate first with either of these, whichever you already have:
+
+```
+gcloud auth application-default login
+$env:GOOGLE_ACCESS_TOKEN = (gcloud auth print-access-token)
+```
+
+The report prints the models in use, which providers are connected, and the most
+recent jobs, captures and episodes with the error text stored against each, then
+a combined failure list. Add `--json` to capture the whole thing for a bug
+report, or `--limit=50` to look further back. No key material is printed; a
+connected provider shows only as a name.
+
+Read the failure list first. An error naming a provider and an HTTP status is a
+credential or model-id problem. An error about size, an incomplete answer or an
+unchosen section is the writing step and belongs to the advice model.

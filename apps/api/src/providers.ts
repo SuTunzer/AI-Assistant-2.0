@@ -59,6 +59,15 @@ function jsonText(text: string) {
     );
   }
 }
+// Claude runs adaptive thinking whenever `thinking` is omitted, and those
+// tokens are drawn from max_tokens before any answer is written. A schema makes
+// the reply parseable by construction; a lower effort keeps thinking from
+// crowding out the answer. Both are Claude-only; the other providers already
+// have their own JSON modes below.
+export interface ModelOptions {
+  schema?: Record<string, unknown>;
+  effort?: 'low' | 'medium' | 'high';
+}
 export async function modelText(
   provider: Settings['adviceProvider'],
   model: string,
@@ -66,6 +75,7 @@ export async function modelText(
   prompt: string,
   maxTokens = 3000,
   json = false,
+  options: ModelOptions = {},
 ): Promise<ModelResult> {
   textCost(model, 0, 0); // No unpriced models can silently consume the budget.
   const key = await getSecret(
@@ -94,6 +104,16 @@ export async function modelText(
           max_tokens: maxTokens,
           system: system + (json ? '\nReturn only the requested JSON object.' : ''),
           messages: [{ role: 'user', content: prompt }],
+          ...(options.effort || (json && options.schema)
+            ? {
+                output_config: {
+                  ...(options.effort ? { effort: options.effort } : {}),
+                  ...(json && options.schema
+                    ? { format: { type: 'json_schema', schema: options.schema } }
+                    : {}),
+                },
+              }
+            : {}),
         }),
       })
     ).json();
@@ -172,8 +192,9 @@ export async function modelJson(
   system: string,
   prompt: string,
   maxTokens = 4000,
+  options: ModelOptions = {},
 ) {
-  const r = await modelText(provider, model, system, prompt, maxTokens, true);
+  const r = await modelText(provider, model, system, prompt, maxTokens, true, options);
   return { ...r, data: jsonText(r.text) };
 }
 export async function transcribe(bytes: Buffer, mime: string, s: Settings) {

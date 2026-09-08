@@ -336,24 +336,56 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
           news: sources,
           newsUnavailable,
         }),
-        Math.min(16000, 2500 + e.minutes * 450),
+        // Thinking tokens come out of this budget before the script is written,
+        // so the ceiling has to cover both or the reply is cut mid-JSON.
+        Math.min(16000, 6000 + e.minutes * 900),
+        {
+          effort: 'low',
+          // Constraining the module list here is what stops a section arriving
+          // for a module the listener did not choose.
+          schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              sections: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    module: { type: 'string', enum: [...e.modules] },
+                    title: { type: 'string' },
+                    text: { type: 'string' },
+                    memoryIds: { type: 'array', items: { type: 'string' } },
+                    taskIds: { type: 'array', items: { type: 'string' } },
+                    sourceIds: { type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['module', 'title', 'text', 'memoryIds', 'taskIds', 'sourceIds'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['title', 'sections'],
+            additionalProperties: false,
+          },
+        },
       );
       const data = briefingSchema.parse(r.data);
       const allowedMemory = new Set(memories.map((m) => m.id)),
         allowedTasks = new Set(activeTasks.map((t) => t.id)),
         allowedSources = new Set(sources.map((x) => x.id));
       for (const section of data.sections) {
-        if (
-          !e.modules.includes(section.module) ||
-          section.memoryIds.some((id) => !allowedMemory.has(id)) ||
-          section.taskIds.some((id) => !allowedTasks.has(id)) ||
-          section.sourceIds.some((id) => !allowedSources.has(id))
-        )
+        if (!e.modules.includes(section.module))
           throw new DomainError(
             'UNSUPPORTED_BRIEFING',
-            'The briefing referenced information outside its permitted context. Please retry.',
+            'The briefing covered a section you did not choose. Please retry.',
             502,
           );
+        // A reference that points nowhere is dropped rather than failing the
+        // whole briefing: these IDs are never spoken, and the spoken words are
+        // checked against the evidence in the next step regardless.
+        section.memoryIds = section.memoryIds.filter((id) => allowedMemory.has(id));
+        section.taskIds = section.taskIds.filter((id) => allowedTasks.has(id));
+        section.sourceIds = section.sourceIds.filter((id) => allowedSources.has(id));
       }
       title = data.title;
       script = data.sections.map((x) => x.text).join('\n\n');
