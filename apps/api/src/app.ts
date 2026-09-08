@@ -51,6 +51,49 @@ import type {
   Task,
 } from '../../../packages/domain/src/types.js';
 import { backupMemories, restoreBackup, purgeBackups } from './backups.js';
+// Every collection the backend writes, for the Settings data browser.
+const DATA_COLLECTIONS = [
+  'memories',
+  'episodes',
+  'captures',
+  'proposals',
+  'templates',
+  'feedback',
+  'snapshots',
+  'settings',
+  'budget',
+  'jobs',
+  'backups',
+  'deletions',
+  'devices',
+  'meta',
+  'vectors',
+  'connections',
+  'secrets',
+  'oauth',
+] as const;
+// Credential material is never returned, even though it is stored encrypted.
+// Push subscription fields count: they let anyone notify the device.
+const CREDENTIAL_FIELDS = new Set([
+  'refresh',
+  'encrypted',
+  'verifier',
+  'state',
+  'endpoint',
+  'keys',
+  'auth',
+  'p256dh',
+]);
+function redactStored(doc: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(doc))
+    out[key] = CREDENTIAL_FIELDS.has(key)
+      ? '[redacted]'
+      : Array.isArray(value) && value.length > 64 && typeof value[0] === 'number'
+        ? `[${value.length} numbers]`
+        : value;
+  return out;
+}
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
@@ -446,6 +489,12 @@ export function createApp() {
       memories: await store.list('memories'),
       templates: await store.list('templates'),
     });
+  });
+  app.get('/api/data', (_req, res) => res.json({ collections: DATA_COLLECTIONS }));
+  app.get('/api/data/:collection', async (req, res) => {
+    const name = z.enum(DATA_COLLECTIONS).parse(req.params.collection);
+    const documents = (await store.list(name)).map(redactStored);
+    res.json({ collection: name, count: documents.length, documents });
   });
   app.get('/api/backups', async (_req, res) =>
     res.json(

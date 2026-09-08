@@ -4159,3 +4159,21 @@ body:has(.persistent-player) .page-footer {
     width: 34px;
   }
 }
+
+/* Settings > Stored data. A raw JSON view, so it scrolls in both directions
+   inside its own box rather than stretching the settings column. */
+.data-view {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcf7;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--ink);
+  overscroll-behavior: contain;
+}

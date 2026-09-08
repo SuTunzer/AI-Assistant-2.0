@@ -109,4 +109,47 @@ describe('private API behavior', () => {
       (await request(app).patch('/api/settings').send({ adviceModel: 'unpriced-model' })).status,
     ).toBe(400);
   });
+  it('browses stored collections without ever returning credential material', async () => {
+    await store.put('connections', 'probe', {
+      id: 'probe',
+      refresh: 'encrypted-refresh-token',
+      connectedAt: new Date().toISOString(),
+    } as never);
+    await store.put('secrets', 'GEMINI_API_KEY', {
+      id: 'GEMINI_API_KEY',
+      encrypted: 'encrypted-api-key',
+    } as never);
+    await store.put('vectors', 'v1', {
+      id: 'v1',
+      values: Array.from({ length: 128 }, (_, i) => i),
+    } as never);
+    try {
+      const list = await request(app).get('/api/data');
+      expect(list.status).toBe(200);
+      expect(list.body.collections).toContain('memories');
+
+      const connections = await request(app).get('/api/data/connections');
+      expect(connections.body.documents[0].connectedAt).toBeTruthy();
+      expect(connections.body.documents[0].refresh).toBe('[redacted]');
+      expect((await request(app).get('/api/data/secrets')).body.documents[0].encrypted).toBe(
+        '[redacted]',
+      );
+      // Embeddings are summarised so one collection cannot dominate the response.
+      expect((await request(app).get('/api/data/vectors')).body.documents[0].values).toBe(
+        '[128 numbers]',
+      );
+
+      // No secret value may appear anywhere in any collection's payload.
+      for (const name of list.body.collections) {
+        const body = JSON.stringify((await request(app).get('/api/data/' + name)).body);
+        expect(body).not.toContain('encrypted-refresh-token');
+        expect(body).not.toContain('encrypted-api-key');
+      }
+      expect((await request(app).get('/api/data/not-a-collection')).status).toBe(400);
+    } finally {
+      await store.remove('connections', 'probe');
+      await store.remove('secrets', 'GEMINI_API_KEY');
+      await store.remove('vectors', 'v1');
+    }
+  });
 });

@@ -34,7 +34,13 @@ export function Settings() {
     [disconnect, setDisconnect] = useState(false),
     [backups, setBackups] = useState<{ id: string; createdAt: string; count: number }[] | null>(
       null,
-    );
+    ),
+    [collections, setCollections] = useState<string[] | null>(null),
+    [table, setTable] = useState<{
+      collection: string;
+      count: number;
+      documents: unknown[];
+    } | null>(null);
   if (!data) return null;
   function update<K extends keyof SettingsType>(key: K, value: SettingsType[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -43,6 +49,40 @@ export function Settings() {
     setBusy(true);
     await run(() => api('settings', 'PATCH', form), 'Settings saved.');
     setBusy(false);
+  }
+  async function openData(collection: string) {
+    try {
+      if (!collection) return setTable(null);
+      setTable(await api('data/' + encodeURIComponent(collection)));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  function downloadJson(value: unknown, name: string) {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function downloadEverything() {
+    try {
+      const names = collections ?? (await api<{ collections: string[] }>('data')).collections;
+      const out: Record<string, unknown> = {};
+      for (const name of names)
+        out[name] = (
+          await api<{ documents: unknown[] }>('data/' + encodeURIComponent(name))
+        ).documents;
+      downloadJson(
+        { format: 'steadier-database', exportedAt: new Date().toISOString(), collections: out },
+        'steadier-database-' + new Date().toISOString().slice(0, 10) + '.json',
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    }
   }
   async function downloadExport() {
     try {
@@ -525,6 +565,52 @@ export function Settings() {
                 Sign out
               </Button>
             ) : null}
+          </section>
+          <section className="card settings-section">
+            <h3>Stored data</h3>
+            <p>
+              Everything the backend holds for you, collection by collection. API keys, the Google
+              refresh token and push subscriptions read as [redacted] — they are never sent here.
+            </p>
+            <label>
+              Collection
+              <select
+                defaultValue=""
+                onFocus={async () => {
+                  if (!collections)
+                    try {
+                      setCollections((await api<{ collections: string[] }>('data')).collections);
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                }}
+                onChange={(e) => void openData(e.target.value)}
+              >
+                <option value="">Choose a collection…</option>
+                {(collections ?? []).map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            {table && (
+              <>
+                <p className="small muted">
+                  {table.count} {table.count === 1 ? 'record' : 'records'} in {table.collection}.
+                </p>
+                <pre className="data-view">{JSON.stringify(table.documents, null, 2)}</pre>
+                <Button
+                  variant="ghost"
+                  onClick={() => downloadJson(table.documents, table.collection + '.json')}
+                >
+                  <Download size={16} />
+                  Download {table.collection}
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" onClick={() => void downloadEverything()}>
+              <Download size={16} />
+              Download the whole database
+            </Button>
           </section>
           <section className="card settings-section">
             <h3>This build</h3>

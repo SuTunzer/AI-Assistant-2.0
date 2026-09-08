@@ -175,6 +175,32 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
       state.templates.push(t);
       result = t;
     }
+  } else if (p[0] === 'data') {
+    const collections: Record<string, unknown[]> = {
+      memories: state.memories,
+      episodes: state.episodes,
+      proposals: state.proposals,
+      templates: state.templates,
+      jobs: state.jobs,
+      settings: [state.settings],
+      budget: [state.budget],
+      snapshots: [{ id: 'tasks', lists: state.lists, tasks: state.tasks }],
+      captures: [],
+      feedback: [],
+      backups: [],
+      deletions: [],
+      devices: [],
+      meta: [],
+      vectors: [],
+      connections: [],
+      secrets: [],
+      oauth: [],
+    };
+    if (!p[1]) result = { collections: Object.keys(collections) };
+    else {
+      const documents = collections[p[1]] || [];
+      result = { collection: p[1], count: documents.length, documents };
+    }
   } else if (p[0] === 'export')
     result = {
       format: 'steadier-export',

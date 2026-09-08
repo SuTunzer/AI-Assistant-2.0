@@ -336,7 +336,7 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
           news: sources,
           newsUnavailable,
         }),
-        Math.min(10000, 1500 + e.minutes * 260),
+        Math.min(16000, 2500 + e.minutes * 450),
       );
       const data = briefingSchema.parse(r.data);
       const allowedMemory = new Set(memories.map((m) => m.id)),
