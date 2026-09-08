@@ -18,12 +18,60 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
     state.budget.remainingAud = state.budget.limitAud;
     result = state.settings;
   } else if (p[0] === 'memories') {
-    if (method === 'GET') result = state.memories;
+    // The preview has no embeddings, so duplicates are shortlisted on shared
+    // words alone. It is the same review-then-confirm flow, just a blunter net.
+    if (p[1] === 'duplicates') {
+      const words = (m: Memory) =>
+        new Set(
+          (m.title + ' ' + m.text)
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .filter(Boolean),
+        );
+      const pairs = [];
+      for (let i = 0; i < state.memories.length; i++)
+        for (let j = i + 1; j < state.memories.length; j++) {
+          const a = words(state.memories[i]),
+            b = words(state.memories[j]);
+          let shared = 0;
+          for (const w of a) if (b.has(w)) shared++;
+          const score = shared / (a.size + b.size - shared);
+          if (score >= 0.6)
+            pairs.push({
+              ids: [state.memories[i].id, state.memories[j].id],
+              score: Math.round(score * 100) / 100,
+              basis: 'wording',
+            });
+        }
+      result = pairs;
+    } else if (p[1] === 'merge') {
+      const ids: string[] = body.ids || [];
+      const found = state.memories.filter((m) => ids.includes(m.id));
+      if (found.length < 2) throw Error('Two existing memories are needed to merge.');
+      found.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const [keep, ...rest] = found;
+      Object.assign(keep, {
+        text: found.map((m) => m.text.trim()).join('\n\n'),
+        tags: [...new Set(found.flatMap((m) => m.tags))],
+        importance: Math.max(...found.map((m) => m.importance || 2)),
+        pinned: found.some((m) => m.pinned),
+        mergedFrom: rest.map((m) => m.id),
+        reviewed: false,
+        version: keep.version + 1,
+        updatedAt: new Date().toISOString(),
+      });
+      const gone = rest.map((m) => m.id);
+      state.memories = state.memories.filter((m) => !gone.includes(m.id));
+      state.episodes = state.episodes.filter((e) => !e.memoryIds.some((id) => gone.includes(id)));
+      result = keep;
+    } else if (method === 'GET') result = state.memories;
     else if (method === 'POST') {
       const m: Memory = {
         ...base(),
         status: 'active',
         epistemic: 'user_reported',
+        importance: 2,
         tags: [],
         entityIds: [],
         taskIds: [],
@@ -111,6 +159,7 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
           text: body.text,
           status: 'active',
           epistemic: 'user_reported',
+          importance: 2,
           tags: ['Your note'],
           entityIds: [],
           taskIds: [],

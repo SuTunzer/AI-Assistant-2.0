@@ -1604,6 +1604,42 @@ main {
   color: #737767;
   gap: 8px;
 }
+/* How strongly a memory should steer advice. It sits beside the category so the
+   weight of a card is readable without opening it; `margin-right: auto` keeps
+   the pin at the far edge where the space-between kicker would otherwise strand
+   this in the middle. */
+.importance-dot {
+  margin-right: auto;
+  font-size: 11px !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: #eef1e7;
+  color: #7c8470;
+}
+.importance-dot.level-3 {
+  background: #e3ecd8;
+  color: #46603c;
+}
+.importance-dot.level-1 {
+  background: transparent;
+  color: #a2a795;
+}
+.duplicate-pair {
+  border: 1px solid #e3e7da;
+  border-radius: 9px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.duplicate-pair p {
+  margin: 3px 0 0;
+}
+.duplicate-pair .form-footer {
+  margin-top: 2px;
+}
 .memory-footnote {
   display: flex;
   gap: 10px;

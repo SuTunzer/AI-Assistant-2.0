@@ -138,10 +138,14 @@ export class CloudStore implements Store {
       .get();
     return snap.docs.map((d) => d.data().memoryId as string);
   }
+  // `embedding` is the indexed field findNearest searches but reads back as an
+  // opaque value, so the plain array is stored alongside it. Duplicate review
+  // needs to compare memories with each other rather than against one query
+  // vector, and re-embedding the whole store to do that would cost real money.
   async saveVector(id: string, values: number[]) {
     await this.collection('vectors')
       .doc(id)
-      .set({ id, memoryId: id, embedding: FieldValue.vector(values) });
+      .set({ id, memoryId: id, embedding: FieldValue.vector(values), values });
   }
 }
 export const store: Store = config.APP_MODE === 'cloud' ? new CloudStore() : new FileStore();

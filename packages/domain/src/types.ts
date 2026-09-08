@@ -2,6 +2,8 @@ export type MemoryKind =
   'goal' | 'person' | 'relationship' | 'issue' | 'decision' | 'preference' | 'event';
 export type Epistemic =
   'user_reported' | 'user_confirmed' | 'assistant_hypothesis' | 'user_corrected';
+/** How much a memory should shape future advice: 3 core, 2 supporting, 1 incidental. */
+export type Importance = 1 | 2 | 3;
 export type Module =
   'priorities' | 'motivation' | 'strategy' | 'reflection' | 'relationships' | 'news' | 'custom';
 export interface BaseRecord {
@@ -16,6 +18,7 @@ export interface Memory extends BaseRecord {
   text: string;
   status: 'active' | 'resolved' | 'uncertain';
   epistemic: Epistemic;
+  importance: Importance;
   tags: string[];
   entityIds: string[];
   taskIds: string[];
@@ -24,6 +27,8 @@ export interface Memory extends BaseRecord {
   sourceId?: string;
   sourceRetained: boolean;
   reviewed: boolean;
+  /** Ids folded into this record by a merge, kept so the history stays legible. */
+  mergedFrom?: string[];
 }
 export interface ChecklistItem {
   id: string;
@@ -249,6 +254,11 @@ export const DEFAULT_SETTINGS: Settings = {
   episodeDays: 7,
   defaultModules: ['priorities', 'motivation', 'strategy'],
   defaultMinutes: 6,
+};
+export const IMPORTANCE_LABELS: Record<Importance, string> = {
+  3: 'Core',
+  2: 'Supporting',
+  1: 'Incidental',
 };
 export const MEMORY_LABELS: Record<MemoryKind, string> = {
   goal: 'Goal',

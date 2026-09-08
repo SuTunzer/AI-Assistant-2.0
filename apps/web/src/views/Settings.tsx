@@ -22,7 +22,7 @@ import { enableNotifications } from '../lib/notifications';
 import { Button, Modal, SectionTitle, Tag, Money } from '../components/ui';
 import { buildInfo, buildLabel, loadLatestBuild } from '../build-info';
 import type { Settings as SettingsType, ConnectionStatus } from '../types';
-import { MODEL_PRICES } from '../../../../packages/domain/src/budget';
+import { modelsFor } from '../../../../packages/domain/src/budget';
 export function Settings() {
   const { data, run, reload, setError, toast } = useApp();
   const [form, setForm] = useState<SettingsType>(data!.settings),
@@ -270,17 +270,9 @@ export function Settings() {
                   value={form.adviceModel}
                   onChange={(e) => update('adviceModel', e.target.value)}
                 >
-                  {Object.keys(MODEL_PRICES)
-                    .filter((m) =>
-                      form.adviceProvider === 'anthropic'
-                        ? m.startsWith('claude')
-                        : form.adviceProvider === 'gemini'
-                          ? m.startsWith('gemini')
-                          : m.startsWith('gpt'),
-                    )
-                    .map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
+                  {modelsFor(form.adviceProvider).map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -291,8 +283,9 @@ export function Settings() {
                   value={form.extractionModel}
                   onChange={(e) => update('extractionModel', e.target.value)}
                 >
-                  <option>gemini-3.5-flash-lite</option>
-                  <option>gemini-3.5-flash</option>
+                  {modelsFor('gemini').map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
                 </select>
               </label>
               <label>
@@ -301,8 +294,9 @@ export function Settings() {
                   value={form.transcriptionModel}
                   onChange={(e) => update('transcriptionModel', e.target.value)}
                 >
-                  <option>gemini-3.5-flash</option>
-                  <option>gemini-3.5-flash-lite</option>
+                  {modelsFor('gemini').map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
                 </select>
               </label>
             </div>

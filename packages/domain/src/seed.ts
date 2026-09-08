@@ -10,6 +10,7 @@ export function demoSeed(): Bootstrap {
     text: string,
     tags: string[],
     pinned = false,
+    importance: Memory['importance'] = 2,
   ): Memory => ({
     ...base,
     id,
@@ -18,6 +19,7 @@ export function demoSeed(): Bootstrap {
     text,
     tags,
     pinned,
+    importance,
     status: 'active',
     epistemic: 'user_reported',
     entityIds: [],
@@ -48,6 +50,7 @@ export function demoSeed(): Bootstrap {
         'Spend less time reacting to email and more time on work that moves the proposal forward. A clear first step each day is what gets me started.',
         ['Work', 'Focus'],
         true,
+        3,
       ),
       memory(
         'm-health',
@@ -56,6 +59,7 @@ export function demoSeed(): Bootstrap {
         'Running clears my head. Consistency and enough rest matter more than any single hard session.',
         ['Health'],
         true,
+        3,
       ),
       memory(
         'm-sam',
@@ -70,6 +74,8 @@ export function demoSeed(): Bootstrap {
         'Stalled on the proposal draft',
         'I keep putting off the proposal because the first draft feels too big. Breaking it into a rough outline would make it easier to start.',
         ['Work', 'Blocker'],
+        false,
+        3,
       ),
       memory(
         'm-values',
@@ -84,6 +90,8 @@ export function demoSeed(): Bootstrap {
         'Context over headlines',
         'I follow AI, geopolitics and Melbourne news. I want context and reliable sources, not a stream of headlines.',
         ['News'],
+        false,
+        1,
       ),
     ],
     tasks: [

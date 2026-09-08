@@ -1,13 +1,28 @@
 import type { Settings } from './types.js';
+// USD per million tokens. A priced entry here is the only gate on using a
+// model: Settings offers what this map holds and `saveSettings` accepts nothing
+// else, so a new release is onboarded by adding one line rather than by editing
+// an allowlist, a dropdown and a price table separately.
+//
+// Where a provider is running an introductory rate, record the standard rate.
+// Reservations are made before a job runs and must never under-book what the
+// bill will eventually be.
 export const MODEL_PRICES: Record<string, { input: number; output: number }> = {
   'claude-sonnet-5': { input: 2, output: 10 },
   'claude-opus-5': { input: 5, output: 25 },
   'claude-haiku-4-5-20251001': { input: 1, output: 5 },
+  'gemini-3.8-flash': { input: 1.5, output: 7.5 }, // intro 0.75/3.75 until 2027-01-01
   'gemini-3.5-flash': { input: 1.5, output: 9 },
   'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+  'gemini-3.1-flash-lite': { input: 0.25, output: 1.5 },
   'gpt-4.1': { input: 2, output: 8 },
   'gpt-4.1-mini': { input: 0.4, output: 1.6 },
 };
+const PREFIX = { anthropic: 'claude', gemini: 'gemini', openai: 'gpt' } as const;
+/** The priced text models a provider may be pointed at, newest ids first. */
+export function modelsFor(provider: Settings['adviceProvider']) {
+  return Object.keys(MODEL_PRICES).filter((m) => m.startsWith(PREFIX[provider]));
+}
 export function textCost(model: string, input: number, output: number) {
   const p = MODEL_PRICES[model];
   if (!p) throw new Error('This model needs a verified price before it can be used.');

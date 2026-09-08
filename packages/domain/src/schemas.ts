@@ -8,11 +8,17 @@ export const moduleSchema = z.enum([
   'news',
   'custom',
 ]);
+// Records written before importance existed read as ordinary supporting context.
+export const importanceSchema = z
+  .union([z.literal(1), z.literal(2), z.literal(3)])
+  .default(2)
+  .catch(2);
 export const memorySchema = z.object({
   kind: z.enum(['goal', 'person', 'relationship', 'issue', 'decision', 'preference', 'event']),
   title: z.string().trim().min(1).max(160),
   text: z.string().trim().min(1).max(4000),
   status: z.enum(['active', 'resolved', 'uncertain']).default('active'),
+  importance: importanceSchema,
   epistemic: z
     .enum(['user_reported', 'user_confirmed', 'assistant_hypothesis', 'user_corrected'])
     .default('user_reported'),
@@ -80,8 +86,28 @@ export const settingsSchema = z.object({
   defaultModules: z.array(moduleSchema).min(1).max(7),
   defaultMinutes: z.number().int().min(1).max(30),
 });
+// Every candidate carries the words it came from. The ceilings are a guard
+// against a runaway response, not a budget for how much a note may say: a long,
+// dense note is expected to fill them.
+const evidenceSchema = z.string().min(1).max(1500);
 export const extractionSchema = z.object({
-  memories: z.array(memorySchema.extend({ evidence: z.string().min(1).max(1500) })).max(15),
-  actions: z.array(proposalSchema).max(5),
+  memories: z.array(memorySchema.extend({ evidence: evidenceSchema })).max(40),
+  // A note that revises something already known updates it in place instead of
+  // stacking a near-duplicate beside it.
+  updates: z
+    .array(
+      z.object({
+        id: z.string().max(100),
+        title: z.string().trim().min(1).max(160).optional(),
+        text: z.string().trim().min(1).max(4000).optional(),
+        status: z.enum(['active', 'resolved', 'uncertain']).optional(),
+        importance: importanceSchema.optional(),
+        reason: z.string().max(500).default(''),
+        evidence: evidenceSchema,
+      }),
+    )
+    .max(20)
+    .default([]),
+  actions: z.array(proposalSchema).max(8),
   reply: z.string().max(5000).default(''),
 });

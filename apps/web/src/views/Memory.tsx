@@ -8,9 +8,17 @@ import {
   Trash2,
   Check,
   Network,
+  Copy,
+  Merge,
   Link as LinkIcon,
 } from 'lucide-react';
-import { MEMORY_LABELS, type Memory as MemoryRecord, type MemoryKind } from '../types';
+import {
+  MEMORY_LABELS,
+  IMPORTANCE_LABELS,
+  type Importance,
+  type Memory as MemoryRecord,
+  type MemoryKind,
+} from '../types';
 import { useApp } from '../context';
 import { api } from '../lib/api';
 import { Button, IconButton, Modal, Tag, Empty, SectionTitle } from '../components/ui';
@@ -19,7 +27,8 @@ export function Memory() {
   const [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all'),
     [edit, setEdit] = useState<MemoryRecord | 'new' | null>(null),
-    [review, setReview] = useState(false);
+    [review, setReview] = useState(false),
+    [duplicates, setDuplicates] = useState(false);
   useEffect(() => {
     const id = new URLSearchParams(location.hash.split('?')[1]).get('edit');
     if (id && data) setEdit(data.memories.find((m) => m.id === id) || null);
@@ -33,7 +42,12 @@ export function Memory() {
         (!query ||
           [m.title, m.text, ...m.tags].join(' ').toLowerCase().includes(query.toLowerCase())),
     )
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        (b.importance || 2) - (a.importance || 2) ||
+        b.updatedAt.localeCompare(a.updatedAt),
+    );
   return (
     <div className="view">
       <SectionTitle
@@ -64,6 +78,10 @@ export function Memory() {
           <Check size={16} />
           To review <span>{data.memories.filter((m) => !m.reviewed).length}</span>
         </button>
+        <button className="review-toggle" onClick={() => setDuplicates(true)}>
+          <Copy size={16} />
+          Find duplicates
+        </button>
       </div>
       <div className="filter-tabs" aria-label="Memory categories">
         <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>
@@ -87,6 +105,9 @@ export function Memory() {
                 <Tag tone={m.kind === 'issue' ? 'peach' : m.kind === 'goal' ? 'sage' : 'neutral'}>
                   {MEMORY_LABELS[m.kind]}
                 </Tag>
+                <span className={'importance-dot level-' + (m.importance || 2)}>
+                  {IMPORTANCE_LABELS[m.importance || 2]}
+                </span>
                 <IconButton
                   label={m.pinned ? 'Unpin memory' : 'Pin memory'}
                   className={m.pinned ? 'pinned' : ''}
@@ -153,7 +174,83 @@ export function Memory() {
       {edit && (
         <MemoryEditor memory={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />
       )}
+      {duplicates && <DuplicatesPanel onClose={() => setDuplicates(false)} />}
     </div>
+  );
+}
+/**
+ * Merging is destructive in one direction -- two records become one -- so
+ * nothing here happens automatically. The pairs are only a shortlist; the user
+ * confirms each one, and dismissing a pair hides it for this visit rather than
+ * recording a judgement the model would then have to respect.
+ */
+function DuplicatesPanel({ onClose }: { onClose: () => void }) {
+  const { data, run } = useApp();
+  const [pairs, setPairs] = useState<
+      { ids: [string, string]; score: number; basis: 'meaning' | 'wording' }[] | null
+    >(null),
+    [error, setError] = useState(''),
+    [dismissed, setDismissed] = useState<string[]>([]),
+    [busy, setBusy] = useState('');
+  useEffect(() => {
+    api<typeof pairs>('memories/duplicates')
+      .then((r) => setPairs(r || []))
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  const found = (pairs || []).filter((p) => !dismissed.includes(p.ids.join()));
+  return (
+    <Modal title="Possible duplicates" onClose={onClose}>
+      <div className="form-stack">
+        <p className="small muted">
+          Memories that say close to the same thing. Merging keeps the oldest record, joins the
+          details and returns it to your review queue.
+        </p>
+        {error && <p className="small">{error}</p>}
+        {!pairs && !error && <p className="small muted">Comparing your memories…</p>}
+        {pairs && !found.length && <p className="small">Nothing looks duplicated right now.</p>}
+        {found.map((pair) => {
+          const both = pair.ids
+            .map((id) => data?.memories.find((m) => m.id === id))
+            .filter(Boolean) as MemoryRecord[];
+          if (both.length < 2) return null;
+          const key = pair.ids.join();
+          return (
+            <div className="duplicate-pair" key={key}>
+              <span className="small muted">
+                {pair.basis === 'meaning' ? 'Similar meaning' : 'Similar wording'} ·{' '}
+                {Math.round(pair.score * 100)}%
+              </span>
+              {both.map((m) => (
+                <div key={m.id}>
+                  <strong>{m.title}</strong>
+                  <p className="small muted">{m.text}</p>
+                </div>
+              ))}
+              <div className="form-footer">
+                <Button variant="ghost" onClick={() => setDismissed([...dismissed, key])}>
+                  Not a duplicate
+                </Button>
+                <Button
+                  busy={busy === key}
+                  onClick={async () => {
+                    setBusy(key);
+                    await run(
+                      () => api('memories/merge', 'POST', { ids: pair.ids }),
+                      'Memories merged.',
+                    );
+                    setBusy('');
+                    setDismissed((d) => [...d, key]);
+                  }}
+                >
+                  <Merge size={16} />
+                  Merge
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
   );
 }
 function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () => void }) {
@@ -163,6 +260,7 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
     [kind, setKind] = useState<MemoryKind>(memory?.kind || 'goal'),
     [tags, setTags] = useState(memory?.tags.join(', ') || ''),
     [status, setStatus] = useState(memory?.status || 'active'),
+    [importance, setImportance] = useState<Importance>(memory?.importance || 2),
     [entityIds, setEntities] = useState(memory?.entityIds || []),
     [taskIds, setTasks] = useState(memory?.taskIds || []),
     [busy, setBusy] = useState(false),
@@ -177,6 +275,7 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
           text,
           kind,
           status,
+          importance,
           tags: tags
             .split(',')
             .map((t) => t.trim())
@@ -215,6 +314,17 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
             </select>
           </label>
         </div>
+        <label>
+          How much should this shape advice?
+          <select
+            value={importance}
+            onChange={(e) => setImportance(Number(e.target.value) as Importance)}
+          >
+            <option value={3}>Core — bring this up often</option>
+            <option value={2}>Supporting — useful context</option>
+            <option value={1}>Incidental — keep, but rarely relevant</option>
+          </select>
+        </label>
         <label>
           Title
           <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} />

@@ -67,6 +67,24 @@ function jsonText(text: string) {
 export interface ModelOptions {
   schema?: Record<string, unknown>;
   effort?: 'low' | 'medium' | 'high';
+  /**
+   * Ask Gemini for its cheapest, lowest-latency pass. Extraction and
+   * transcription are mechanical jobs where deep reasoning buys nothing and is
+   * billed as output tokens; advice leaves this unset and gets the default.
+   */
+  thinking?: 'fast';
+}
+/**
+ * Gemini 2.5 took a token budget. Gemini 3 replaced it with `thinkingLevel` and
+ * warns that the legacy field degrades its answers, so the dialect is chosen
+ * from the model's major version rather than from a list that would need
+ * editing for every release. `minimal` errors on 3.x Flash; `low` is the floor.
+ */
+export function geminiThinking(model: string): Record<string, unknown> {
+  const major = Number(/^gemini-(\d+)/.exec(model)?.[1] || 0);
+  if (major >= 3) return { thinkingConfig: { thinkingLevel: 'low' } };
+  if (major === 2) return { thinkingConfig: { thinkingBudget: 0 } };
+  return {};
 }
 export async function modelText(
   provider: Settings['adviceProvider'],
@@ -143,7 +161,7 @@ export async function modelText(
             generationConfig: {
               maxOutputTokens: maxTokens,
               ...(json ? { responseMimeType: 'application/json' } : {}),
-              ...(model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+              ...(options.thinking === 'fast' ? geminiThinking(model) : {}),
             },
           }),
         },
@@ -223,7 +241,10 @@ export async function transcribe(bytes: Buffer, mime: string, s: Settings) {
               ],
             },
           ],
-          generationConfig: { maxOutputTokens: 12000, thinkingConfig: { thinkingBudget: 0 } },
+          generationConfig: {
+            maxOutputTokens: 12000,
+            ...geminiThinking(s.transcriptionModel),
+          },
         }),
       },
       180000,

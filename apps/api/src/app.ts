@@ -15,6 +15,8 @@ import {
   createMemory,
   editMemory,
   deleteMemory,
+  mergeMemories,
+  duplicateCandidates,
   addProposal,
   approveProposal,
   retrieve,
@@ -202,6 +204,11 @@ export function createApp() {
         ? await retrieve(req.query.q, 50)
         : await store.list('memories'),
     ),
+  );
+  // Registered before `:id` so neither word is read as a memory id.
+  app.get('/api/memories/duplicates', async (_req, res) => res.json(await duplicateCandidates()));
+  app.post('/api/memories/merge', async (req, res) =>
+    res.json(await mergeMemories(z.array(z.string().max(100)).min(2).max(10).parse(req.body?.ids))),
   );
   app.post('/api/memories', async (req, res) => res.status(201).json(await createMemory(req.body)));
   app.patch('/api/memories/:id', async (req, res) =>

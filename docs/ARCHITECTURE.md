@@ -28,8 +28,8 @@ The shared TypeScript types are in `packages/domain/src/types.ts`; input schemas
 
 | Collection | Content and lifecycle |
 | --- | --- |
-| `memories` | Goals, people, relationships, issues, decisions, preferences and events. Text, certainty, status, tags, links, source ID, review state and optimistic version. Kept until deleted. |
-| `vectors` | Optional 768-dimensional Gemini embeddings. Deleted with their memory. |
+| `memories` | Goals, people, relationships, issues, decisions, preferences and events. Text, certainty, status, importance, tags, links, source ID, review state, merge provenance and optimistic version. Kept until deleted. |
+| `vectors` | Optional 768-dimensional Gemini embeddings, stored both as the searchable index field and as a plain array so memories can be compared with each other for duplicate review. Deleted with their memory. |
 | `snapshots` | Selected Google Tasks and list metadata from the last successful sync. Old app coaching logs are excluded from the normalised context. |
 | `proposals` | Suggested/new actions. Pending → creating → accepted, dismissed or uncertain. |
 | `captures` | Temporary typed input or recording pointer, processing state, learned IDs and response. Raw audio removed after processing; default transcript removal is immediate. |
@@ -41,15 +41,16 @@ The shared TypeScript types are in `packages/domain/src/types.ts`; input schemas
 | `backups`, `deletions` | Encrypted snapshot metadata and deletion tombstones. |
 | `templates`, `settings`, `feedback`, `meta` | Reusable audio mixes, preferences, recent coaching feedback and revision/retention counters. |
 
-This implementation targets a personal workspace. The Firestore adapter lists collections with pagination; snapshots and budget ledgers still use single documents. Very large task lists or years of dense use need partitioned snapshots and an archival strategy before approaching Firestore document limits. Briefing context is deliberately bounded (up to 18 memories and 60 open tasks); the model is told its task coverage. There is no claim that every memory or task appears in every briefing.
+This implementation targets a personal workspace. The Firestore adapter lists collections with pagination; snapshots and budget ledgers still use single documents. Very large task lists or years of dense use need partitioned snapshots and an archival strategy before approaching Firestore document limits. Briefing context is deliberately bounded (up to 18 memories and 60 open tasks); the model is told its task coverage. Capture is not bounded in the same way: a note contributes as many memories as it supports, and each is rated 1–3 for importance so retrieval — not extraction — decides what reaches a briefing. There is no claim that every memory or task appears in every briefing.
 
 ## Remembering and correcting
 
 1. The browser records compressed audio in two-second pieces in IndexedDB. A navigation interruption stops the recorder and leaves recoverable pieces. The original is removed from the browser after the server accepts it; failed uploads remain locally available.
-2. The worker transcribes with Gemini. Extraction separates personal claims from assistant hypotheses and requires verbatim supporting evidence in the current input. Unsupported candidate memories are dropped. Exact repeats are deduplicated against retrieved memories.
-3. New understanding is stored as memories. It does not automatically rewrite older user-corrected facts. Ambiguous changes can coexist until reviewed; certainty and time remain visible. The “What I learned” card lets you inspect and edit them.
-4. A direct edit must carry the current version. A conflicting edit is rejected. Correcting or deleting supporting memories invalidates existing audio; deletion also removes derived transcripts and files. Offline devices receive that change on their next successful reconnect.
-5. Temporary chat does not extract memories or create task proposals. Its conversation history lives in React state and disappears on leaving the screen. Temporary audio has short-lived processing storage and a reply, which expires; no memory extraction occurs.
+2. The worker transcribes with Gemini. Extraction separates personal claims from assistant hypotheses and requires supporting evidence quoted from the current input. Punctuation the model tidies while copying is tolerated; a quote whose words are not in the note is not. Dropped candidates are counted and logged, so a thin result can be told apart from a strict filter. Exact repeats are deduplicated against retrieved memories.
+3. New understanding is stored as memories, and a note that revises something already known updates that record in place rather than stacking a near-duplicate beside it. It does not automatically rewrite older user-corrected facts: an inferred revision to a memory the user edited is refused, and the note may only add a separate memory. A model-driven revision keeps its existing certainty and returns to the review queue. Ambiguous changes can coexist until reviewed; certainty and time remain visible. The “What I learned” card lets you inspect and edit them.
+4. Memories that say close to the same thing are shortlisted for review by embedding similarity, or by word overlap where no embedding exists. Nothing merges automatically. A confirmed merge keeps the oldest record so existing references still resolve, takes the strongest importance, status and pin of the set, repoints briefings, captures, links and suggestions at the survivor, and returns it for review. Unlike a deletion it leaves no tombstone: the shared source note is still valid.
+5. A direct edit must carry the current version. A conflicting edit is rejected. Correcting or deleting supporting memories invalidates existing audio; deletion also removes derived transcripts and files. Offline devices receive that change on their next successful reconnect.
+6. Temporary chat does not extract memories or create task proposals. Its conversation history lives in React state and disappears on leaving the screen. Temporary audio has short-lived processing storage and a reply, which expires; no memory extraction occurs.
 
 These controls reduce fabricated personal claims; they do not prove semantic accuracy. The LLM can misunderstand speech, confuse an inference with a fact or overstate advice. Editable memories, visible certainty, source links, bounded context and factual checking are intentional product controls.
 
