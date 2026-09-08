@@ -1,27 +1,57 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
-  Mic,
-  Headphones,
+  ArrowUp,
+  ArrowDown,
   Plus,
   Check,
   ChevronDown,
   ChevronRight,
   Leaf,
-  Target,
   RefreshCw,
-  CalendarDays,
-  Send,
   Trash2,
 } from 'lucide-react';
 import { useApp } from '../context';
 import { api } from '../lib/api';
-import type { Task, Proposal } from '../types';
+import type { Bootstrap, Task, Proposal } from '../types';
 import { Button, IconButton, Modal, Tag, Empty, SectionTitle } from '../components/ui';
+const endpointFor = (t: Task) =>
+  `tasks/${encodeURIComponent(t.listId)}/${encodeURIComponent(t.id)}`;
+/**
+ * Optimistic task writes, the pattern from the standalone task assistant:
+ * paint the change into the cache now, send the write in the background,
+ * swap in the server's copy when it lands, and only fall back to a full
+ * refresh if it fails. The visible list never waits on Google.
+ */
+function useTaskWrite() {
+  const { mutate, reload, setError } = useApp();
+  const replace = useCallback(
+    (task: Task) =>
+      mutate((d) => ({
+        ...d,
+        tasks: d.tasks.map((t) => (t.id === task.id && t.listId === task.listId ? task : t)),
+      })),
+    [mutate],
+  );
+  const write = useCallback(
+    async (optimistic: Task, request: () => Promise<Task>) => {
+      replace(optimistic);
+      try {
+        replace(await request());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'That change did not save. Refreshing…');
+        void reload();
+      }
+    },
+    [replace, reload, setError],
+  );
+  return { write, mutate, reload, setError };
+}
 export function Today() {
-  const { data, run, reload } = useApp();
-  const [selected, setSelected] = useState<Task | null>(null),
+  const { data, reload } = useApp();
+  const { write, mutate, setError } = useTaskWrite();
+  const [selected, setSelected] = useState<{ id: string; listId: string } | null>(null),
     [showCompleted, setShowCompleted] = useState(false),
     [list, setList] = useState('all'),
     [add, setAdd] = useState(false),
@@ -30,35 +60,61 @@ export function Today() {
   const tasks = data.tasks.filter(
     (t) => (showCompleted || t.status !== 'completed') && (list === 'all' || t.listId === list),
   );
-  const done = data.tasks.filter((t) => t.status === 'completed').length;
   const goals = data.memories.filter((m) => m.kind === 'goal' && m.status === 'active');
   const suggestions = data.proposals.filter((p) =>
     ['pending', 'creating', 'uncertain'].includes(p.status),
   );
+  const done = data.tasks.filter((t) => t.status === 'completed').length;
+  // The order you arrange these in is your priority order. Reordering is
+  // limited to top-level open tasks — a nested task moves with its parent.
+  const orderedOpen = tasks.filter((t) => !t.parent && t.status !== 'completed');
+  const toggleComplete = (t: Task) => {
+    const status = t.status === 'completed' ? 'needsAction' : 'completed';
+    return write({ ...t, status }, () => api<Task>(endpointFor(t), 'PATCH', { status }));
+  };
+  const moveTask = (t: Task, dir: -1 | 1) => {
+    const siblings = orderedOpen.filter((s) => s.listId === t.listId);
+    const from = siblings.findIndex((s) => s.id === t.id);
+    const to = from + dir;
+    if (to < 0 || to >= siblings.length) return;
+    const previous = to === 0 ? null : dir === 1 ? siblings[to] : siblings[to - 1];
+    mutate((d: Bootstrap) => {
+      const block = [t, ...d.tasks.filter((x) => x.parent === t.id)];
+      const ids = new Set(block.map((x) => x.id));
+      const rest = d.tasks.filter((x) => !ids.has(x.id));
+      const anchor = previous
+        ? rest.findIndex((x) => x.id === previous.id)
+        : rest.findIndex((x) => x.listId === t.listId) - 1;
+      rest.splice(anchor + 1, 0, ...block);
+      return { ...d, tasks: rest };
+    });
+    void (async () => {
+      try {
+        const updated = await api<Task>(endpointFor(t) + '/move', 'POST', {
+          previous: previous?.id ?? null,
+        });
+        mutate((d) => ({
+          ...d,
+          tasks: d.tasks.map((x) =>
+            x.id === updated.id && x.listId === updated.listId ? updated : x,
+          ),
+        }));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not reorder. Refreshing…');
+        void reload();
+      }
+    })();
+  };
+  const openTask = selected
+    ? data.tasks.find((t) => t.id === selected.id && t.listId === selected.listId)
+    : undefined;
   return (
     <div className="page-enter">
-      <div className="quick-actions">
-        <a className="button primary" href="#/capture">
-          <Mic size={17} /> Record a note
-        </a>
-        <a className="button secondary" href="#/listen">
-          <Headphones size={17} /> Build a briefing
-        </a>
-      </div>
-      <div className="stat-grid">
-        <Stat
-          icon={<Target size={19} />}
-          value={data.tasks.filter((t) => t.status === 'needsAction').length}
-          label="open tasks"
-        />
-        <Stat icon={<Leaf size={19} />} value={goals.length} label="active goals" />
-        <Stat icon={<Check size={19} />} value={done} label="completed" />
-      </div>
       <div className="today-columns">
         <section className="card tasks-card">
           <SectionTitle
             title="Tasks"
-            description="Straight from Google Tasks."
+            description="In your priority order — top is next."
             action={
               <div className="button-row compact">
                 <IconButton
@@ -94,57 +150,70 @@ export function Today() {
           {data.taskError && <p className="inline-warning">{data.taskError}</p>}
           <div className="task-list">
             {tasks.length ? (
-              tasks.map((t) => (
-                <div
-                  key={t.listId + t.id}
-                  className={`task-row ${t.status === 'completed' ? 'done' : ''} ${t.parent ? 'child-task' : ''}`}
-                >
-                  <button
-                    className="task-check"
-                    aria-label={`${t.status === 'completed' ? 'Reopen' : 'Complete'} ${t.title}`}
-                    aria-pressed={t.status === 'completed'}
-                    onClick={() =>
-                      void run(() =>
-                        api(
-                          `tasks/${encodeURIComponent(t.listId)}/${encodeURIComponent(t.id)}`,
-                          'PATCH',
-                          {
-                            status: t.status === 'completed' ? 'needsAction' : 'completed',
-                            etag: t.etag,
-                          },
-                        ),
-                      )
-                    }
+              tasks.map((t) => {
+                const rank = t.parent
+                  ? -1
+                  : orderedOpen
+                      .filter((s) => s.listId === t.listId)
+                      .findIndex((s) => s.id === t.id);
+                const movable = rank >= 0;
+                const siblingCount = orderedOpen.filter((s) => s.listId === t.listId).length;
+                return (
+                  <div
+                    key={t.listId + t.id}
+                    className={`task-row ${t.status === 'completed' ? 'done' : ''} ${t.parent ? 'child-task' : ''}`}
                   >
-                    {t.status === 'completed' && <Check size={13} />}
-                  </button>
-                  <button className="task-body" onClick={() => setSelected(t)}>
-                    <span>{t.title}</span>
-                    <div className="task-meta">
-                      {t.subtasks.length > 0 && (
-                        <span>
-                          {t.subtasks.filter((s) => s.done).length}/{t.subtasks.length} steps
-                        </span>
-                      )}
-                      {t.due && (
-                        <span>
-                          <CalendarDays size={11} />
-                          {new Date(t.due + 'T12:00:00').toLocaleDateString('en-AU', {
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      )}
-                      {t.tags.includes('important') && (
-                        <span className="priority-dot">Important</span>
-                      )}
-                    </div>
-                  </button>
-                  <IconButton label={`Open ${t.title}`} onClick={() => setSelected(t)}>
-                    <ChevronRight size={20} />
-                  </IconButton>
-                </div>
-              ))
+                    <button
+                      className="task-check"
+                      aria-label={`${t.status === 'completed' ? 'Reopen' : 'Complete'} ${t.title}`}
+                      aria-pressed={t.status === 'completed'}
+                      onClick={() => void toggleComplete(t)}
+                    >
+                      {t.status === 'completed' && <Check size={13} />}
+                    </button>
+                    <button
+                      className="task-body"
+                      onClick={() => setSelected({ id: t.id, listId: t.listId })}
+                    >
+                      <span>{t.title}</span>
+                      <div className="task-meta">
+                        {t.subtasks.length > 0 && (
+                          <span>
+                            {t.subtasks.filter((s) => s.done).length}/{t.subtasks.length} steps
+                          </span>
+                        )}
+                        {t.tags.includes('important') && (
+                          <span className="priority-dot">Important</span>
+                        )}
+                      </div>
+                    </button>
+                    {movable && t.status !== 'completed' && (
+                      <div className="task-reorder">
+                        <IconButton
+                          label={`Move ${t.title} up`}
+                          disabled={rank === 0}
+                          onClick={() => moveTask(t, -1)}
+                        >
+                          <ArrowUp size={16} />
+                        </IconButton>
+                        <IconButton
+                          label={`Move ${t.title} down`}
+                          disabled={rank === siblingCount - 1}
+                          onClick={() => moveTask(t, 1)}
+                        >
+                          <ArrowDown size={16} />
+                        </IconButton>
+                      </div>
+                    )}
+                    <IconButton
+                      label={`Open ${t.title}`}
+                      onClick={() => setSelected({ id: t.id, listId: t.listId })}
+                    >
+                      <ChevronRight size={20} />
+                    </IconButton>
+                  </div>
+                );
+              })
             ) : (
               <Empty
                 icon={<Check />}
@@ -204,24 +273,8 @@ export function Today() {
           </div>
         </section>
       )}
-      {selected && (
-        <TaskDialog
-          task={
-            data.tasks.find((t) => t.id === selected.id && t.listId === selected.listId) || selected
-          }
-          onClose={() => setSelected(null)}
-        />
-      )}
+      {openTask && <TaskDialog task={openTask} onClose={() => setSelected(null)} />}
       {add && <NewTaskDialog onClose={() => setAdd(false)} />}
-    </div>
-  );
-}
-function Stat({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
-  return (
-    <div className="stat">
-      <span className="stat-icon">{icon}</span>
-      <strong>{value}</strong>
-      <span>{label}</span>
     </div>
   );
 }
@@ -288,88 +341,112 @@ export function ProposalCard({ proposal: p }: { proposal: Proposal }) {
 }
 function TaskDialog({ task: t, onClose }: { task: Task; onClose: () => void }) {
   const { run } = useApp();
+  const { write } = useTaskWrite();
   const [step, setStep] = useState(''),
     [title, setTitle] = useState(t.title),
-    [due, setDue] = useState(t.due || '');
-  const endpoint = `tasks/${encodeURIComponent(t.listId)}/${encodeURIComponent(t.id)}`;
+    [savingTitle, setSavingTitle] = useState(false);
+  // The dialog stays mounted through optimistic updates, so resync the title
+  // field if the task's stored title changes underneath it.
+  useEffect(() => setTitle(t.title), [t.title]);
+  const path = endpointFor(t);
+  const subs = t.subtasks;
+  const titleChanged = !!title.trim() && title.trim() !== t.title;
+  const patchSteps = (next: Task['subtasks'], checklist: Record<string, unknown>) =>
+    write({ ...t, subtasks: next }, () => api<Task>(path, 'PATCH', { checklist }));
+  const toggleStep = (id: string) =>
+    patchSteps(
+      subs.map((s) => (s.id === id ? { ...s, done: !s.done } : s)),
+      { id, done: !subs.find((s) => s.id === id)?.done },
+    );
+  const removeStep = (id: string) =>
+    patchSteps(
+      subs.filter((s) => s.id !== id),
+      { id, remove: true },
+    );
+  const moveStep = (i: number, dir: -1 | 1) => {
+    const to = i + dir;
+    if (to < 0 || to >= subs.length) return;
+    const next = [...subs];
+    [next[i], next[to]] = [next[to], next[i]];
+    patchSteps(next, { id: subs[i].id, move: dir === -1 ? 'up' : 'down' });
+  };
+  const addStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = step.trim();
+    if (!value) return;
+    const item = {
+      id: crypto.randomUUID(),
+      title: value,
+      done: false,
+      createdAt: new Date().toISOString(),
+      createdBy: 'user' as const,
+    };
+    patchSteps([...subs, item], { id: item.id, add: item });
+    setStep('');
+  };
   return (
-    <Modal title="Task details" onClose={onClose}>
+    <Modal title="Task" onClose={onClose}>
       <div className="modal-content">
         <label className="field">
           Task
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          <div className="inline-form">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={1024} />
+            {titleChanged && (
+              <Button
+                variant="secondary"
+                busy={savingTitle}
+                onClick={async () => {
+                  setSavingTitle(true);
+                  await run(
+                    () => api(path, 'PATCH', { title: title.trim(), etag: t.etag }),
+                    'Task updated.',
+                  );
+                  setSavingTitle(false);
+                }}
+              >
+                Save
+              </Button>
+            )}
+          </div>
         </label>
-        <label className="field">
-          Due date
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
-        </label>
-        <Button
-          variant="secondary"
-          disabled={!title.trim()}
-          onClick={() =>
-            void run(
-              () => api(endpoint, 'PATCH', { title, due: due || null, etag: t.etag }),
-              'Task updated.',
-            )
-          }
-        >
-          Save details
-        </Button>
         {t.notes && <p className="note-block">{t.notes}</p>}
         <div className="section-title small">
           <h3>Steps</h3>
           <Tag>
-            {t.subtasks.filter((s) => s.done).length}/{t.subtasks.length}
+            {subs.filter((s) => s.done).length}/{subs.length}
           </Tag>
         </div>
-        {t.subtasks.map((s) => (
+        {subs.map((s, i) => (
           <div className="checklist-row" key={s.id}>
             <input
               aria-label={s.title}
               type="checkbox"
               checked={s.done}
-              onChange={() =>
-                void run(() =>
-                  api(endpoint, 'PATCH', { checklist: { id: s.id, done: !s.done }, etag: t.etag }),
-                )
-              }
+              onChange={() => toggleStep(s.id)}
             />
             <span className={s.done ? 'struck' : ''}>{s.title}</span>
-            <IconButton
-              label={`Remove ${s.title}`}
-              onClick={() =>
-                void run(() =>
-                  api(endpoint, 'PATCH', { checklist: { id: s.id, remove: true }, etag: t.etag }),
-                )
-              }
-            >
-              <Trash2 size={14} />
-            </IconButton>
+            <div className="checklist-reorder">
+              <IconButton
+                label={`Move ${s.title} up`}
+                disabled={i === 0}
+                onClick={() => moveStep(i, -1)}
+              >
+                <ArrowUp size={14} />
+              </IconButton>
+              <IconButton
+                label={`Move ${s.title} down`}
+                disabled={i === subs.length - 1}
+                onClick={() => moveStep(i, 1)}
+              >
+                <ArrowDown size={14} />
+              </IconButton>
+              <IconButton label={`Remove ${s.title}`} onClick={() => removeStep(s.id)}>
+                <Trash2 size={14} />
+              </IconButton>
+            </div>
           </div>
         ))}
-        <form
-          className="inline-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (!step.trim()) return;
-            await run(() =>
-              api(endpoint, 'PATCH', {
-                checklist: {
-                  id: crypto.randomUUID(),
-                  add: {
-                    id: crypto.randomUUID(),
-                    title: step.trim(),
-                    done: false,
-                    createdAt: new Date().toISOString(),
-                    createdBy: 'user',
-                  },
-                },
-                etag: t.etag,
-              }),
-            );
-            setStep('');
-          }}
-        >
+        <form className="inline-form" onSubmit={addStep}>
           <input
             aria-label="New checklist step"
             placeholder="Add a step…"
@@ -393,7 +470,6 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
   const { data, run } = useApp();
   const [title, setTitle] = useState(existing?.title || ''),
     [notes, setNotes] = useState(existing?.notes || ''),
-    [due, setDue] = useState(existing?.due || ''),
     [listId, setList] = useState(existing?.listId || data?.lists[0]?.id || '@default'),
     [busy, setBusy] = useState(false),
     [proposal, setProposal] = useState<Proposal | undefined>(existing);
@@ -406,13 +482,7 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
           setBusy(true);
           if (proposal) {
             const accepted = await run(
-              () =>
-                api(`proposals/${proposal.id}/approve`, 'POST', {
-                  title,
-                  notes,
-                  listId,
-                  ...(due ? { due } : {}),
-                }),
+              () => api(`proposals/${proposal.id}/approve`, 'POST', { title, notes, listId }),
               'Added to your tasks.',
             );
             if (accepted) onClose();
@@ -423,7 +493,6 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
                 notes,
                 listId,
                 reason: 'An action you chose.',
-                ...(due ? { due } : {}),
               }),
             );
             if (p) setProposal(p);
@@ -446,23 +515,17 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
           Notes
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
         </label>
-        <div className="form-grid">
-          <label className="field">
-            Task list
-            <select value={listId} onChange={(e) => setList(e.target.value)}>
-              {data?.lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.title}
-                </option>
-              ))}
-              {!data?.lists.length && <option value="@default">Default list</option>}
-            </select>
-          </label>
-          <label className="field">
-            Due date (optional)
-            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
-          </label>
-        </div>
+        <label className="field">
+          Task list
+          <select value={listId} onChange={(e) => setList(e.target.value)}>
+            {data?.lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.title}
+              </option>
+            ))}
+            {!data?.lists.length && <option value="@default">Default list</option>}
+          </select>
+        </label>
         {proposal && (
           <p className="subtle-note">
             This will create a task in{' '}

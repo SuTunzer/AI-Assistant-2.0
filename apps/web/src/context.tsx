@@ -9,6 +9,13 @@ interface AppState {
   error: string;
   reload: (refresh?: boolean) => Promise<void>;
   run: <T>(fn: () => Promise<T>, message?: string) => Promise<T | undefined>;
+  /**
+   * Apply a change to the cached workspace immediately, without a round trip.
+   * For optimistic edits: paint the result now, fire the write in the
+   * background, reconcile with the server's copy on success or call `reload`
+   * on failure.
+   */
+  mutate: (fn: (data: Bootstrap) => Bootstrap) => void;
   toast: (message: string) => void;
   setError: (message: string) => void;
 }
@@ -64,6 +71,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, []);
+  const mutate = useCallback((fn: (data: Bootstrap) => Bootstrap) => {
+    setData((current) => (current ? fn(current) : current));
+  }, []);
   async function run<T>(fn: () => Promise<T>, success?: string) {
     try {
       const result = await fn();
@@ -76,7 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <Context.Provider value={{ data, loading, error, reload, run, toast, setError }}>
+    <Context.Provider value={{ data, loading, error, reload, run, mutate, toast, setError }}>
       {children}
       {message && (
         <div className="toast" role="status">

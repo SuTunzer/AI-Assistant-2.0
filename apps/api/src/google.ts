@@ -182,12 +182,17 @@ export async function patchGoogleTask(
       done?: boolean;
       title?: string;
       remove?: boolean;
+      move?: 'up' | 'down';
       add?: ChecklistItem;
     };
   },
 ) {
   const path = taskPath(list, id),
     raw = await googleCall(path);
+  // The caller sends an etag only for a considered edit (a rename). The rapid
+  // paths — ticking a step, reordering — skip it: Google's own If-Match on the
+  // line below still guards against a change landing between this read and the
+  // write, and a stale client etag there only produced false conflicts.
   if (changes.etag && changes.etag !== raw.etag)
     throw new DomainError('TASK_CONFLICT', 'This task changed. Refresh before editing.', 409);
   const patch: Record<string, unknown> = {};
@@ -203,6 +208,16 @@ export async function patchGoogleTask(
     headers: { 'If-Match': raw.etag },
     body: JSON.stringify(patch),
   });
+  return rememberTask(fromGoogleTask(list, await googleCall(path)));
+}
+// Reorders a task within its list. The list order is the user's priority order,
+// so it lives in Google's `position` field and only an explicit move changes
+// it. `previous` is the id of the task that should now sit above this one, or
+// null to lift it to the top.
+export async function moveGoogleTask(list: string, id: string, previous: string | null) {
+  const path = taskPath(list, id);
+  const query = previous ? '?previous=' + encodeURIComponent(previous) : '';
+  await googleCall(path + '/move' + query, { method: 'POST' });
   return rememberTask(fromGoogleTask(list, await googleCall(path)));
 }
 export async function createGoogleTask(list: string, title: string, notes: string, due?: string) {

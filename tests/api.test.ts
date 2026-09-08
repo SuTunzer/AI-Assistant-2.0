@@ -67,6 +67,33 @@ describe('private API behavior', () => {
       ).status,
     ).toBe(409);
   });
+  it('reorders a task to the top of its list and renumbers positions', async () => {
+    const open = (await request(app).get('/api/bootstrap')).body.tasks.filter(
+      (t: Task) => t.status !== 'completed',
+    );
+    const target = open[open.length - 1];
+    const moved = await request(app)
+      .post(`/api/tasks/${encodeURIComponent(target.listId)}/${encodeURIComponent(target.id)}/move`)
+      .send({ previous: null });
+    expect(moved.status).toBe(200);
+    const after = (await request(app).get('/api/bootstrap')).body.tasks;
+    expect(after[0].id).toBe(target.id);
+    expect(after[0].position < after[1].position).toBe(true);
+  });
+  it('moves a checklist step without disturbing the other steps', async () => {
+    const task = (await request(app).get('/api/bootstrap')).body.tasks.find(
+      (t: Task) => t.subtasks.length >= 3,
+    );
+    const order = task.subtasks.map((s: { id: string }) => s.id);
+    const r = await request(app)
+      .patch(`/api/tasks/${encodeURIComponent(task.listId)}/${encodeURIComponent(task.id)}`)
+      .send({ checklist: { id: order[0], move: 'down' } });
+    expect(r.body.subtasks.map((s: { id: string }) => s.id)).toEqual([
+      order[1],
+      order[0],
+      ...order.slice(2),
+    ]);
+  });
   it('does not turn a temporary capture into memory and purges its input', async () => {
     const before = (await store.list('memories')).length;
     const c = (

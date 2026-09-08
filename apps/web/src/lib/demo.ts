@@ -99,17 +99,28 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
   } else if (p[0] === 'tasks') {
     const t = state.tasks.find((t) => t.id === p[2]);
     if (!t) throw Error('Task not found.');
-    const { checklist, ...changes } = body;
-    Object.assign(t, changes);
-    if (checklist) {
-      if (checklist.add) t.subtasks.push(checklist.add);
-      else if (checklist.remove) t.subtasks = t.subtasks.filter((s) => s.id !== checklist.id);
-      else {
-        const s = t.subtasks.find((s) => s.id === checklist.id);
-        if (s) Object.assign(s, checklist);
+    if (p[3] === 'move') {
+      const from = state.tasks.indexOf(t);
+      state.tasks.splice(from, 1);
+      const after = body.previous ? state.tasks.findIndex((x) => x.id === body.previous) : -1;
+      state.tasks.splice(after + 1, 0, t);
+      state.tasks.forEach((x, i) => (x.position = String(i).padStart(6, '0')));
+      result = t;
+    } else {
+      const { checklist, ...changes } = body;
+      Object.assign(t, changes);
+      if (checklist) {
+        const at = t.subtasks.findIndex((s) => s.id === checklist.id);
+        if (checklist.add) t.subtasks.push(checklist.add);
+        else if (checklist.remove) t.subtasks = t.subtasks.filter((s) => s.id !== checklist.id);
+        else if (checklist.move) {
+          const to = checklist.move === 'up' ? at - 1 : at + 1;
+          if (at >= 0 && to >= 0 && to < t.subtasks.length)
+            [t.subtasks[at], t.subtasks[to]] = [t.subtasks[to], t.subtasks[at]];
+        } else if (at >= 0) Object.assign(t.subtasks[at], checklist);
       }
+      result = t;
     }
-    result = t;
   } else if (p[0] === 'proposals') {
     if (p.length === 1) {
       const proposal: Proposal = { ...base(), ...body, status: 'pending' };

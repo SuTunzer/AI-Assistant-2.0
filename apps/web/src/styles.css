@@ -714,40 +714,6 @@ main {
   color: #67745b;
   transform: rotate(-6deg);
 }
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
-  margin: 12px 0 20px;
-  padding: 11px 0;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border-right: 1px solid var(--border);
-}
-.stat:last-child {
-  border-right: 0;
-}
-.stat-icon {
-  display: flex;
-  color: #98a680;
-  margin-right: 2px;
-}
-.stat strong {
-  font-family: var(--serif);
-  font-size: 27px;
-  font-weight: 400;
-  line-height: 1;
-}
-.stat > span:last-child {
-  font-size: 13px;
-  color: #666a5e;
-}
 .today-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(250px, 1fr);
@@ -861,6 +827,36 @@ main {
 .task-row > .icon-button {
   width: 22px;
   height: 27px;
+}
+/* Nudge a task up or down its list — the list order is the priority order.
+   Tall, narrow hit targets so a thumb can walk an item up without the row
+   growing. */
+.task-reorder {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.task-reorder .icon-button {
+  width: 26px;
+  height: 21px;
+  color: #9aa088;
+}
+.task-reorder .icon-button:disabled {
+  opacity: 0.28;
+}
+.checklist-reorder {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.checklist-reorder .icon-button {
+  width: 26px;
+  height: 26px;
+  color: #9aa088;
+}
+.checklist-reorder .icon-button:disabled {
+  opacity: 0.28;
 }
 .child-task {
   padding-left: 15px;
@@ -1069,12 +1065,10 @@ main {
 }
 .checklist-row > span {
   flex: 1;
+  overflow-wrap: anywhere;
 }
 .checklist-row input {
   margin: 0;
-}
-.checklist-row .icon-button {
-  margin-left: auto;
 }
 .subtle-note {
   padding: 10px;
@@ -2658,9 +2652,6 @@ body:has(.persistent-player) .page-footer {
   .persistent-player {
     left: 274px;
   }
-  .stat-grid {
-    padding: 14px 0;
-  }
   .task-row {
     min-height: 70px;
   }
@@ -2698,15 +2689,6 @@ body:has(.persistent-player) .page-footer {
   .welcome-copy .button {
     font-size: 12px;
     padding: 7px 8px;
-  }
-  .stat {
-    gap: 7px;
-  }
-  .stat > span:last-child {
-    font-size: 12px;
-  }
-  .stat strong {
-    font-size: 25px;
   }
   .today-columns {
     gap: 12px;
@@ -2867,13 +2849,6 @@ body:has(.persistent-player) .page-footer {
   .right-stack {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-  .stat-icon {
-    display: none;
-  }
-  .stat > span:last-child {
-    max-width: 68px;
-    line-height: 1.5;
   }
   .suggestion-grid {
     grid-template-columns: 1fr;
@@ -3144,22 +3119,6 @@ body:has(.persistent-player) .page-footer {
   }
   .welcome-copy {
     max-width: 275px;
-  }
-  .stat-grid {
-    padding: 10px 0;
-    margin: 10px 0 15px;
-  }
-  .stat {
-    gap: 8px;
-    align-items: center;
-  }
-  .stat strong {
-    font-size: 25px;
-  }
-  .stat > span:last-child {
-    font-size: 12px;
-    max-width: 65px;
-    line-height: 1.55;
   }
   .card {
     border-radius: 13px;
@@ -3859,13 +3818,6 @@ body:has(.persistent-player) .page-footer {
   .right-stack {
     grid-template-columns: 1fr;
   }
-  .stat > span:last-child {
-    font-size: 11px;
-    max-width: 57px;
-  }
-  .stat strong {
-    font-size: 24px;
-  }
   .demo-banner a {
     display: none;
   }
@@ -4147,19 +4099,6 @@ body:has(.persistent-player) .page-footer {
   user-select: all;
 }
 
-/* The two entry points the welcome hero used to carry, without the marketing
-   copy or the illustration, so the first screen opens on content. */
-.quick-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-@media (max-width: 767px) {
-  .quick-actions .button {
-    flex: 1;
-  }
-}
-
 /* Content type. The row title is the loudest thing on the screen; everything
    else on the row is support. Phone only — desktop keeps the current scale. */
 @media (max-width: 767px) {
@@ -4189,10 +4128,25 @@ body:has(.persistent-player) .page-footer {
     font-size: 21px;
     font-weight: 650;
   }
-  /* Rows get height from their content now, so the chevron should not force
-     a wider gutter than it needs. */
+  /* On a phone the whole row opens the task on tap, so the chevron is dropped
+     and its gutter goes back to the title. The reorder arrows stay — they are
+     the only way to set priority order by touch. */
+  .task-row {
+    gap: 7px;
+  }
   .task-row > .icon-button {
-    width: 34px;
+    display: none;
+  }
+  .task-reorder .icon-button {
+    width: 30px;
+    height: 24px;
+  }
+  .checklist-reorder {
+    gap: 0;
+  }
+  .checklist-reorder .icon-button {
+    width: 30px;
+    height: 32px;
   }
 }
 

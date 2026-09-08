@@ -33,7 +33,13 @@ import {
   maintenance,
   retryCapture,
 } from './jobs.js';
-import { googleConnect, googleCallback, disconnectGoogle, patchGoogleTask } from './google.js';
+import {
+  googleConnect,
+  googleCallback,
+  disconnectGoogle,
+  patchGoogleTask,
+  moveGoogleTask,
+} from './google.js';
 import { modelText, speech } from './providers.js';
 import { reserveCost, settleCost } from './budget.js';
 import { readFileData, signedAudio, deleteFile } from './files.js';
@@ -251,6 +257,7 @@ export function createApp() {
             done: z.boolean().optional(),
             title: z.string().min(1).max(500).optional(),
             remove: z.boolean().optional(),
+            move: z.enum(['up', 'down']).optional(),
             add: z
               .object({
                 id: z.string().max(100),
@@ -273,14 +280,38 @@ export function createApp() {
       if (change.due !== undefined) t.due = change.due;
       if (change.checklist) {
         const c = change.checklist;
+        const at = t.subtasks.findIndex((s: any) => s.id === c.id);
         if (c.add) t.subtasks.push(c.add);
         else if (c.remove) t.subtasks = t.subtasks.filter((s: any) => s.id !== c.id);
-        else Object.assign(t.subtasks.find((s: any) => s.id === c.id) || {}, c);
+        else if (c.move) {
+          const to = c.move === 'up' ? at - 1 : at + 1;
+          if (at >= 0 && to >= 0 && to < t.subtasks.length)
+            [t.subtasks[at], t.subtasks[to]] = [t.subtasks[to], t.subtasks[at]];
+        } else if (at >= 0) Object.assign(t.subtasks[at], c);
       }
       await store.put('snapshots', 'tasks', snap);
       return res.json(t);
     }
     res.json(await patchGoogleTask(String(req.params.listId), String(req.params.id), change));
+  });
+  app.post('/api/tasks/:listId/:id/move', async (req, res) => {
+    const { previous } = z
+      .object({ previous: z.string().max(200).nullable() })
+      .parse(req.body || {});
+    if (config.APP_MODE === 'demo') {
+      const snap = (await store.get('snapshots', 'tasks'))!;
+      const from = snap.tasks.findIndex((t: Task) => t.id === req.params.id);
+      if (from < 0) throw new DomainError('NOT_FOUND', 'Task not found.', 404);
+      const [moved] = snap.tasks.splice(from, 1);
+      const after = previous ? snap.tasks.findIndex((t: Task) => t.id === previous) : -1;
+      snap.tasks.splice(after + 1, 0, moved);
+      // Restamp positions so the next read comes back in the same order the user
+      // just arranged, matching how Google renumbers on a real move.
+      snap.tasks.forEach((t: Task, i: number) => (t.position = String(i).padStart(6, '0')));
+      await store.put('snapshots', 'tasks', snap);
+      return res.json(moved);
+    }
+    res.json(await moveGoogleTask(String(req.params.listId), String(req.params.id), previous));
   });
   app.post('/api/captures', async (req, res) => {
     const b = z

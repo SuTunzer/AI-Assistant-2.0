@@ -7,13 +7,17 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Tasks', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Record a note' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Build a briefing' }).first()).toBeVisible();
   await expect(page.getByText('Nothing is sent to a server.', { exact: false })).toBeVisible();
   await page.screenshot({
     path: 'test-results/' + info.project.name + '-today.png',
     fullPage: true,
   });
+  // Reordering is the priority order and lands immediately — nudge the top
+  // task down and it swaps with the one below without a reload.
+  const topTitle = (await page.locator('.task-body > span').first().textContent())!.trim();
+  await page.getByRole('button', { name: `Move ${topTitle} down`, exact: true }).click();
+  await expect(page.locator('.task-body > span').nth(1)).toHaveText(topTitle);
   await page.getByRole('button', { name: 'Add task', exact: true }).click();
   await page
     .getByRole('dialog')

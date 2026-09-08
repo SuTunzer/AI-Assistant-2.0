@@ -44,7 +44,7 @@ export function parseTaskNotes(raw: string) {
 export function editChecklist(
   raw: string,
   itemId: string,
-  change: { done?: boolean; title?: string; remove?: boolean },
+  change: { done?: boolean; title?: string; remove?: boolean; move?: 'up' | 'down' },
   add?: ChecklistItem,
 ) {
   const parsed = parseTaskNotes(raw);
@@ -63,7 +63,14 @@ export function editChecklist(
     if (index < 0)
       throw new DomainError('TASK_CONFLICT', 'This checklist item changed. Refresh the task.', 409);
     if (change.remove) items.splice(index, 1);
-    else {
+    else if (change.move) {
+      // Steps display in stored order, so reordering is a swap with the
+      // neighbour. A move off either end is a no-op rather than an error, so a
+      // fast double-tap on the top item does not fail.
+      const target = change.move === 'up' ? index - 1 : index + 1;
+      if (target >= 0 && target < items.length)
+        [items[index], items[target]] = [items[target], items[index]];
+    } else {
       if (change.done !== undefined) items[index].done = change.done;
       if (change.title !== undefined) items[index].title = change.title;
     }

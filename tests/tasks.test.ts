@@ -67,4 +67,22 @@ describe('compatibility with the existing task assistant', () => {
     const once = editChecklist('My notes', item.id, {}, item);
     expect(editChecklist(once, item.id, {}, item)).toBe(once);
   });
+  it('reorders checklist steps and treats a move off the end as a no-op', () => {
+    const raw =
+      META_DELIMITER +
+      '\n' +
+      JSON.stringify({
+        subtasks: [
+          { ...item, id: 'a' },
+          { ...item, id: 'b' },
+          { ...item, id: 'c' },
+        ],
+      });
+    expect(
+      parseTaskNotes(editChecklist(raw, 'a', { move: 'down' })).subtasks.map((s) => s.id),
+    ).toEqual(['b', 'a', 'c']);
+    expect(
+      parseTaskNotes(editChecklist(raw, 'a', { move: 'up' })).subtasks.map((s) => s.id),
+    ).toEqual(['a', 'b', 'c']);
+  });
 });
