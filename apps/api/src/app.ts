@@ -23,7 +23,7 @@ import {
   extractMemories,
   ADVISER_SYSTEM,
   recordBase,
-  feedbackContext,
+  profile,
 } from './services.js';
 import {
   createEpisode,
@@ -32,6 +32,7 @@ import {
   cancelJob,
   maintenance,
   retryCapture,
+  createReview,
 } from './jobs.js';
 import {
   googleConnect,
@@ -213,6 +214,9 @@ export function createApp() {
   );
   // Registered before `:id` so neither word is read as a memory id.
   app.get('/api/memories/duplicates', async (_req, res) => res.json(await duplicateCandidates()));
+  app.post('/api/memories/review', async (_req, res) =>
+    res.status(202).json(await createReview('manual')),
+  );
   app.post('/api/memories/merge', async (req, res) =>
     res.json(await mergeMemories(z.array(z.string().max(100)).min(2).max(10).parse(req.body?.ids))),
   );
@@ -349,8 +353,9 @@ export function createApp() {
       id = 'chat-' + randomUUID();
     const month = await reserveCost(id, config.APP_MODE === 'demo' ? 0 : toAud(0.4, s), s);
     try {
-      const memories = b.useContext ? await retrieve(b.text, 12) : [];
-      const snapshot = b.useContext ? await store.get('snapshots', 'tasks') : undefined;
+      // The adviser reads the same profile the reflection pass does: core
+      // memories always present, then what the question pulls in.
+      const p = b.useContext ? await profile(b.text, s) : undefined;
       let text: string,
         usd = 0;
       let memoryIds: string[] = [],
@@ -364,19 +369,18 @@ export function createApp() {
           s.adviceModel,
           ADVISER_SYSTEM,
           JSON.stringify({
+            today: p?.today,
+            name: p?.name,
             message: b.text,
             history: b.history,
             style: b.style,
-            feedback: await feedbackContext(),
-            memories,
-            tasks: snapshot?.tasks?.slice(0, 30).map((t: Task) => ({
-              id: t.id,
-              title: t.title,
-              status: t.status,
-              due: t.due,
-              subtasks: t.subtasks,
-            })),
-            taskSnapshotAt: snapshot?.syncedAt,
+            feedback: p?.feedback ?? [],
+            core: p?.core ?? [],
+            related: p?.related ?? [],
+            recent: p?.recent ?? [],
+            hypotheses: p?.hypotheses ?? [],
+            tasks: p?.tasks ?? [],
+            taskSnapshotAt: p?.taskSnapshotAt,
             temporary: b.mode === 'temporary',
           }),
           1800,

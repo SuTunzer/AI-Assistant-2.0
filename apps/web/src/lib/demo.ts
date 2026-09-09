@@ -20,6 +20,10 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
   } else if (p[0] === 'memories') {
     // The preview has no embeddings, so duplicates are shortlisted on shared
     // words alone. It is the same review-then-confirm flow, just a blunter net.
+    if (p[1] === 'review')
+      throw Error(
+        'The standing review needs your connected workspace and an AI provider. It is not available in this preview.',
+      );
     if (p[1] === 'duplicates') {
       const words = (m: Memory) =>
         new Set(

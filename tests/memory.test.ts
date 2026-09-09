@@ -8,20 +8,25 @@ process.env.DATA_DIR = folder;
 // against the real path with the provider scripted instead.
 process.env.APP_MODE = 'local';
 process.env.LOCAL_ACCESS_TOKEN = 'a-local-token-of-sufficient-length';
-const provider = vi.hoisted(() => ({ modelJson: vi.fn() }));
+const provider = vi.hoisted(() => ({ modelJson: vi.fn(), searchWeb: vi.fn() }));
 vi.mock('../apps/api/src/providers', async (original) => ({
   ...(await original<typeof import('../apps/api/src/providers')>()),
   modelJson: provider.modelJson,
+  searchWeb: provider.searchWeb,
   embed: async () => undefined,
 }));
 const {
   extractMemories,
+  reflect,
+  consolidate,
+  profile,
   createMemory,
   mergeMemories,
   duplicateCandidates,
   retrieve,
   saveSettings,
 } = await import('../apps/api/src/services');
+const { captureEstimate } = await import('../packages/domain/src/budget');
 const { geminiThinking } = await import('../apps/api/src/providers');
 const { store } = await import('../apps/api/src/store');
 const { DEFAULT_SETTINGS } = await import('../packages/domain/src/types');
@@ -255,7 +260,284 @@ describe('memory importance', () => {
     expect(ranked.indexOf(core.id)).toBeLessThan(ranked.indexOf(aside.id));
   });
 });
+describe('reflection', () => {
+  it('turns what the adviser noticed into hypotheses tied to the evidence it was shown', async () => {
+    const goal = await createMemory({
+      kind: 'goal',
+      title: 'Finish the thesis draft',
+      text: 'The thesis draft is the priority this year.',
+      importance: 3,
+    });
+    await store.put('snapshots', 'tasks', {
+      tasks: [
+        {
+          id: 't-draft',
+          listId: 'personal',
+          title: 'Write chapter four',
+          status: 'needsAction',
+          position: '0',
+          notes: '',
+          subtasks: [],
+          tags: [],
+          metadataValid: true,
+        },
+      ],
+      lists: [],
+      syncedAt: new Date().toISOString(),
+    });
+    reply({
+      insights: [
+        {
+          kind: 'pattern',
+          title: 'Starting is the hard part',
+          text: 'Three notes now describe circling the draft without opening it.',
+          importance: 3,
+          confidence: 'medium',
+          basedOn: [goal.id, 't-draft', 'not-in-packet'],
+        },
+        {
+          kind: 'risk',
+          title: 'Unfounded worry',
+          text: 'Rests on nothing shown.',
+          importance: 2,
+          confidence: 'high',
+          basedOn: ['made-up'],
+        },
+      ],
+      actions: [{ title: 'Open chapter four for ten minutes', notes: '', reason: 'Small start.' }],
+      reply: 'You keep circling the draft. Open it for ten minutes today.',
+    });
+    const r = await reflect(
+      'I did not open the draft again today.',
+      'source-reflect',
+      settings,
+      [],
+    );
+    expect(r.reply).toContain('ten minutes');
+    expect(r.insights.map((m) => m.title)).toEqual(['Starting is the hard part']);
+    const saved = r.insights[0];
+    expect(saved.kind).toBe('pattern');
+    expect(saved.epistemic).toBe('assistant_hypothesis');
+    expect(saved.reviewed).toBe(false);
+    expect(saved.entityIds).toEqual([goal.id]);
+    expect(saved.taskIds).toEqual(['t-draft']);
+    expect(r.proposals).toHaveLength(1);
+  });
+  it('updates an earlier hypothesis by title instead of stacking a twin', async () => {
+    const before = (await store.list('memories')).length;
+    reply({
+      insights: [
+        {
+          kind: 'pattern',
+          title: 'Starting is the hard part',
+          text: 'Confirmed again: the draft was avoided for a fourth day.',
+          importance: 3,
+          confidence: 'high',
+          basedOn: ['t-draft'],
+        },
+      ],
+      actions: [],
+      reply: '',
+    });
+    const r = await reflect('Fourth day, still not opened.', 'source-reflect-2', settings, []);
+    expect((await store.list('memories')).length).toBe(before);
+    expect(r.insights[0].text).toContain('fourth day');
+    expect(r.insights[0].status).toBe('active');
+    expect(r.insights[0].version).toBe(2);
+  });
+  it('gives the adviser the core profile whatever the note is about', async () => {
+    const p = await profile('completely unrelated words zzz', settings);
+    expect(p.core.some((m) => m.title === 'Finish the thesis draft')).toBe(true);
+    expect(p.hypotheses.some((m) => m.title === 'Starting is the hard part')).toBe(true);
+    expect(p.tasks.map((t) => t.id)).toContain('t-draft');
+    expect(p.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+describe('research', () => {
+  it('sends only the adviser’s impersonal query and cites what it used', async () => {
+    const goal = await createMemory({
+      kind: 'goal',
+      title: 'Leave the current job',
+      text: 'Planning to resign this quarter.',
+      importance: 3,
+    });
+    provider.searchWeb.mockResolvedValueOnce([
+      {
+        id: 'web-0',
+        title: 'Notice periods in Victoria',
+        url: 'https://example.gov.au/a',
+        summary: 'Four weeks.',
+      },
+      {
+        id: 'web-1',
+        title: 'Unrelated',
+        url: 'https://example.com/b',
+        summary: 'Nothing to do with it.',
+      },
+    ]);
+    reply({
+      insights: [],
+      actions: [],
+      research: [
+        { query: 'minimum notice period resignation Victoria', why: 'They are resigning.' },
+      ],
+      reply: 'You sound ready to go.',
+    });
+    reply({ text: 'Four weeks is the usual minimum here.', sourceIds: ['web-0'] });
+    const r = await reflect(
+      'I want to hand in my notice at Acme next month.',
+      'source-research',
+      { ...settings, researchOnCapture: true },
+      [goal],
+    );
+    const [sent] = provider.searchWeb.mock.calls.at(-1)!;
+    expect(sent).toEqual(['minimum notice period resignation Victoria']);
+    // The note and the memories must never reach the search provider.
+    expect(JSON.stringify(sent)).not.toMatch(/Acme|resign this quarter/i);
+    expect(r.reply).toContain('You sound ready to go.');
+    expect(r.reply).toContain('Four weeks');
+    expect(r.sources.map((s) => s.id)).toEqual(['web-0']);
+  });
+  it('keeps the coaching when the search fails', async () => {
+    provider.searchWeb.mockRejectedValueOnce(new Error('Connect a search provider in Settings.'));
+    reply({
+      insights: [],
+      actions: [],
+      research: [{ query: 'anything', why: 'because' }],
+      reply: 'Here is what I think.',
+    });
+    const r = await reflect(
+      'A note.',
+      'source-research-fail',
+      { ...settings, researchOnCapture: true },
+      [],
+    );
+    expect(r.reply).toBe('Here is what I think.');
+    expect(r.sources).toEqual([]);
+  });
+  it('does not search at all when the setting is off', async () => {
+    provider.searchWeb.mockClear();
+    reply({
+      insights: [],
+      actions: [],
+      research: [{ query: 'something', why: 'why' }],
+      reply: 'No lookup wanted.',
+    });
+    await reflect('A note.', 'source-no-research', settings, []);
+    expect(provider.searchWeb).not.toHaveBeenCalled();
+  });
+});
+describe('the standing review', () => {
+  it('consolidates the whole store without rewriting what the user wrote', async () => {
+    const mine = await createMemory({
+      kind: 'issue',
+      title: 'The garage is a mess',
+      text: 'My own words about the garage.',
+      importance: 2,
+      epistemic: 'user_corrected',
+    });
+    const stale = await createMemory({
+      kind: 'pattern',
+      title: 'Avoids weekend chores',
+      text: 'An earlier conclusion.',
+      epistemic: 'assistant_hypothesis',
+    });
+    const quiet = await createMemory({
+      kind: 'goal',
+      title: 'Learn the piano',
+      text: 'Wanted to start lessons.',
+      importance: 3,
+    });
+    const twin = await createMemory({
+      kind: 'goal',
+      title: 'Start piano lessons',
+      text: 'Meaning to book a teacher.',
+      importance: 2,
+    });
+    reply({
+      syntheses: [
+        {
+          kind: 'pattern',
+          title: 'Projects start strong then stall',
+          text: 'Visible across the piano goal and the garage.',
+          importance: 3,
+          confidence: 'high',
+          basedOn: [quiet.id, mine.id],
+        },
+        {
+          kind: 'risk',
+          title: 'Groundless',
+          text: 'Rests on nothing.',
+          importance: 2,
+          confidence: 'high',
+          basedOn: ['nope'],
+        },
+      ],
+      updates: [
+        { id: quiet.id, importance: 1, reason: 'Nothing has moved on it in months.' },
+        { id: mine.id, status: 'resolved', reason: 'Should not be allowed to touch this.' },
+      ],
+      retractions: [
+        { id: stale.id, reason: 'Later notes contradict it.' },
+        { id: mine.id, reason: 'Not the adviser’s to withdraw.' },
+      ],
+      duplicates: [{ ids: [quiet.id, twin.id], reason: 'Say the same thing.' }],
+      summary: 'Tidied the picture and withdrew one old conclusion.',
+    });
+    const review = await consolidate(settings);
+    expect(review.summary).toContain('Tidied the picture');
+    expect(review.reviewed).toBeGreaterThan(3);
+    expect(review.syntheses).toBe(1);
+    expect(review.retracted).toBe(1);
+    // Re-rating a user memory is allowed; resolving one the user corrected is not.
+    expect((await store.get('memories', quiet.id)).importance).toBe(1);
+    const untouched = await store.get('memories', mine.id);
+    expect(untouched.status).toBe('active');
+    expect(untouched.text).toBe('My own words about the garage.');
+    expect(untouched.version).toBe(mine.version);
+    // A withdrawn conclusion is resolved and says why, never deleted.
+    const withdrawn = await store.get('memories', stale.id);
+    expect(withdrawn.status).toBe('resolved');
+    expect(withdrawn.text).toContain('Later notes contradict it.');
+    const synth = (await store.list('memories')).find(
+      (m) => m.title === 'Projects start strong then stall',
+    );
+    expect(synth.epistemic).toBe('assistant_hypothesis');
+    expect(synth.reviewed).toBe(false);
+    expect(synth.entityIds).toEqual(expect.arrayContaining([quiet.id, mine.id]));
+    expect((await store.list('memories')).some((m) => m.title === 'Groundless')).toBe(false);
+  });
+  it('offers the pairs it flagged for merging ahead of the embedding guesses', async () => {
+    const pairs = await duplicateCandidates();
+    expect(pairs[0].basis).toBe('review');
+    expect(pairs[0].ids).toHaveLength(2);
+    // A memory the review just resolved is no longer a merge candidate.
+    const withdrawn = (await store.list('memories')).find(
+      (m) => m.title === 'Avoids weekend chores',
+    );
+    expect(pairs.some((p) => p.ids.includes(withdrawn.id))).toBe(false);
+  });
+});
 describe('model selection', () => {
+  it('lets memory work run on Claude and prices the reflection pass into a capture', async () => {
+    const saved = await saveSettings({
+      ...settings,
+      extractionProvider: 'anthropic',
+      extractionModel: 'claude-opus-5',
+    });
+    expect(saved.extractionModel).toBe('claude-opus-5');
+    await expect(
+      saveSettings({
+        ...settings,
+        extractionProvider: 'anthropic',
+        extractionModel: 'gemini-3.8-flash',
+      }),
+    ).rejects.toThrow();
+    const withReflection = captureEstimate({ ...settings, reflectOnCapture: true });
+    const factsOnly = captureEstimate({ ...settings, reflectOnCapture: false });
+    expect(withReflection).toBeGreaterThan(factsOnly);
+    expect(factsOnly).toBeGreaterThan(0);
+  });
   it('accepts any priced model and still refuses an unpriced one', async () => {
     const saved = await saveSettings({ ...settings, extractionModel: 'gemini-3.8-flash' });
     expect(saved.extractionModel).toBe('gemini-3.8-flash');

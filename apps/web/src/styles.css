@@ -1620,6 +1620,39 @@ main {
   background: transparent;
   color: #a2a795;
 }
+/* What the adviser did on its own since you were last here. Sits between the
+   toolbar and the grid because it is a report, not a control. */
+.standing-review {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #e3e7da;
+  background: #f5f7ee;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+.standing-review strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.standing-review p {
+  margin: 3px 0 0;
+  max-width: 68ch;
+}
+.standing-review .button {
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .standing-review {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 .duplicate-pair {
   border: 1px solid #e3e7da;
   border-radius: 9px;
@@ -2458,6 +2491,27 @@ main {
   align-items: center;
   gap: 7px;
   margin: 5px 0;
+}
+/* A single on/off setting with its consequence spelled out beneath it, for
+   the switches that change what a note costs or what the adviser does. */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #f5f7ee;
+  border-radius: 8px;
+  margin: 4px 0 12px;
+  font-size: 14px;
+}
+.check-row input {
+  margin: 3px 0 0;
+  flex-shrink: 0;
+}
+.check-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .budget-card {
   background: #edf1e2;

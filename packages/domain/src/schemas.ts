@@ -14,7 +14,18 @@ export const importanceSchema = z
   .default(2)
   .catch(2);
 export const memorySchema = z.object({
-  kind: z.enum(['goal', 'person', 'relationship', 'issue', 'decision', 'preference', 'event']),
+  kind: z.enum([
+    'goal',
+    'person',
+    'relationship',
+    'issue',
+    'decision',
+    'preference',
+    'event',
+    'pattern',
+    'risk',
+    'opportunity',
+  ]),
   title: z.string().trim().min(1).max(160),
   text: z.string().trim().min(1).max(4000),
   status: z.enum(['active', 'resolved', 'uncertain']).default('active'),
@@ -74,8 +85,12 @@ export const settingsSchema = z.object({
   costBuffer: z.number().min(1).max(2),
   adviceProvider: z.enum(['anthropic', 'gemini', 'openai']),
   adviceModel: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),
-  extractionModel: z.string().regex(/^gemini-[a-zA-Z0-9._-]{1,90}$/),
+  extractionProvider: z.enum(['anthropic', 'gemini']).default('gemini'),
+  extractionModel: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),
   transcriptionModel: z.string().regex(/^gemini-[a-zA-Z0-9._-]{1,90}$/),
+  reflectOnCapture: z.boolean().default(true),
+  researchOnCapture: z.boolean().default(false),
+  consolidateDays: z.number().int().min(0).max(90).default(7),
   voiceProvider: z.enum(['gemini', 'google-cloud', 'openai']),
   voiceModel: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/),
   voice: z.string().regex(/^[a-zA-Z0-9_-]{1,60}$/),
@@ -110,4 +125,79 @@ export const extractionSchema = z.object({
     .default([]),
   actions: z.array(proposalSchema).max(8),
   reply: z.string().max(5000).default(''),
+});
+// What the adviser returns after reading a note against the whole profile.
+// Insights are inferences, not facts, so they are stored as hypotheses and
+// must point at the memories or tasks they rest on.
+export const reflectionSchema = z.object({
+  insights: z
+    .array(
+      z.object({
+        kind: z.enum(['issue', 'pattern', 'risk', 'opportunity']),
+        title: z.string().trim().min(1).max(160),
+        text: z.string().trim().min(1).max(4000),
+        importance: importanceSchema,
+        confidence: z.enum(['low', 'medium', 'high']).default('medium'),
+        basedOn: z.array(z.string().max(200)).max(20).default([]),
+      }),
+    )
+    .max(6)
+    .default([]),
+  actions: z.array(proposalSchema).max(4).default([]),
+  // Impersonal search queries the adviser wants answered on the user's behalf.
+  // These are the only text that ever leaves for a search engine.
+  research: z
+    .array(z.object({ query: z.string().trim().min(3).max(150), why: z.string().max(300) }))
+    .max(3)
+    .default([]),
+  reply: z.string().max(6000).default(''),
+});
+export const researchSchema = z.object({
+  text: z.string().max(6000).default(''),
+  sourceIds: z.array(z.string().max(50)).max(12).default([]),
+});
+/**
+ * The standing review: the adviser re-reading the whole store on its own. It
+ * may add syntheses, re-rate and resolve, withdraw its own past conclusions
+ * and flag duplicates -- but it never rewrites the words of a user's memory.
+ */
+export const consolidationSchema = z.object({
+  syntheses: z
+    .array(
+      z.object({
+        kind: z.enum(['issue', 'pattern', 'risk', 'opportunity']),
+        title: z.string().trim().min(1).max(160),
+        text: z.string().trim().min(1).max(4000),
+        importance: importanceSchema,
+        confidence: z.enum(['low', 'medium', 'high']).default('medium'),
+        basedOn: z.array(z.string().max(200)).max(30).default([]),
+      }),
+    )
+    .max(6)
+    .default([]),
+  updates: z
+    .array(
+      z.object({
+        id: z.string().max(200),
+        importance: importanceSchema.optional(),
+        status: z.enum(['active', 'resolved', 'uncertain']).optional(),
+        reason: z.string().max(300).default(''),
+      }),
+    )
+    .max(40)
+    .default([]),
+  retractions: z
+    .array(z.object({ id: z.string().max(200), reason: z.string().max(300).default('') }))
+    .max(20)
+    .default([]),
+  duplicates: z
+    .array(
+      z.object({
+        ids: z.array(z.string().max(200)).min(2).max(6),
+        reason: z.string().max(300).default(''),
+      }),
+    )
+    .max(20)
+    .default([]),
+  summary: z.string().max(4000).default(''),
 });

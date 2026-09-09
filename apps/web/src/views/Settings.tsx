@@ -278,14 +278,74 @@ export function Settings() {
             </div>
             <div className="form-pair">
               <label>
-                Memory extraction
+                Memory provider
+                <select
+                  value={form.extractionProvider}
+                  onChange={(e) => {
+                    const p = e.target.value as SettingsType['extractionProvider'];
+                    update('extractionProvider', p);
+                    update('extractionModel', modelsFor(p)[0]);
+                  }}
+                >
+                  <option value="gemini">Google Gemini</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
+              <label>
+                Memory model
                 <select
                   value={form.extractionModel}
                   onChange={(e) => update('extractionModel', e.target.value)}
                 >
-                  {modelsFor('gemini').map((m) => (
+                  {modelsFor(form.extractionProvider).map((m) => (
                     <option key={m}>{m}</option>
                   ))}
+                </select>
+              </label>
+            </div>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={form.reflectOnCapture}
+                onChange={(e) => update('reflectOnCapture', e.target.checked)}
+              />
+              <span>
+                <strong>Have the adviser review every note</strong>
+                <span className="small muted">
+                  After the facts are saved, the advice model reads the note against your whole
+                  profile for patterns, risks, opportunities and a next step. Off saves facts only
+                  and costs a fraction as much.
+                </span>
+              </span>
+            </label>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={form.researchOnCapture}
+                disabled={!form.reflectOnCapture}
+                onChange={(e) => update('researchOnCapture', e.target.checked)}
+              />
+              <span>
+                <strong>Let the adviser look things up for you</strong>
+                <span className="small muted">
+                  When a note raises something worth checking, the adviser searches the web and
+                  tells you what it found, with sources. Only the impersonal question it writes is
+                  sent to the search provider — never your note or your memories. Needs Brave Search
+                  connected.
+                </span>
+              </span>
+            </label>
+            <div className="form-pair">
+              <label>
+                Standing review
+                <select
+                  value={form.consolidateDays}
+                  onChange={(e) => update('consolidateDays', Number(e.target.value))}
+                >
+                  <option value={0}>Only when I ask</option>
+                  <option value={1}>Daily</option>
+                  <option value={7}>Weekly</option>
+                  <option value={30}>Monthly</option>
                 </select>
               </label>
               <label>
@@ -300,6 +360,11 @@ export function Settings() {
                 </select>
               </label>
             </div>
+            <p className="small muted">
+              The standing review is the adviser re-reading your whole memory on its own, with no
+              note in front of it, to consolidate what is there. It runs only when something has
+              changed, and you can start one any time from Memory.
+            </p>
           </section>
           <section className="card settings-section">
             <h3>Voice</h3>

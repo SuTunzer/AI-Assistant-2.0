@@ -109,6 +109,11 @@ test('all screens fit the viewport and expose working controls', async ({ page }
       await page.getByRole('button', { name: 'Send message', exact: true }).click();
       await expect(page.getByText('Sample response', { exact: true })).toBeVisible();
     }
+    if (route === 'memory')
+      await page.screenshot({
+        path: 'test-results/' + info.project.name + '-memory.png',
+        fullPage: true,
+      });
     if (route === 'settings') {
       await page.getByLabel('Name', { exact: true }).fill('Alex');
       await page.getByRole('button', { name: 'Save preferences', exact: true }).first().click();

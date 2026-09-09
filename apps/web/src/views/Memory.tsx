@@ -10,6 +10,7 @@ import {
   Network,
   Copy,
   Merge,
+  Sparkles,
   Link as LinkIcon,
 } from 'lucide-react';
 import {
@@ -83,6 +84,7 @@ export function Memory() {
           Find duplicates
         </button>
       </div>
+      <StandingReview />
       <div className="filter-tabs" aria-label="Memory categories">
         <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>
           Everything <span>{data.memories.length}</span>
@@ -102,7 +104,15 @@ export function Memory() {
           {items.map((m) => (
             <article className={'card memory-card ' + m.kind} key={m.id}>
               <div className="card-kicker">
-                <Tag tone={m.kind === 'issue' ? 'peach' : m.kind === 'goal' ? 'sage' : 'neutral'}>
+                <Tag
+                  tone={
+                    m.kind === 'issue' || m.kind === 'risk'
+                      ? 'peach'
+                      : m.kind === 'goal' || m.kind === 'opportunity'
+                        ? 'sage'
+                        : 'neutral'
+                  }
+                >
                   {MEMORY_LABELS[m.kind]}
                 </Tag>
                 <span className={'importance-dot level-' + (m.importance || 2)}>
@@ -179,6 +189,65 @@ export function Memory() {
   );
 }
 /**
+ * The standing review runs on its own schedule, so this reports what it last
+ * did rather than asking for anything. Its findings are already in the review
+ * queue and the duplicates panel; the summary is the part that has nowhere
+ * else to live.
+ */
+function StandingReview() {
+  const { data, run, reload } = useApp();
+  const [busy, setBusy] = useState(false);
+  const review = data?.review;
+  const running = data?.jobs.some((j) => j.kind === 'review' && j.status !== 'complete');
+  const when = review?.at ? new Date(review.at) : null;
+  return (
+    <section className="standing-review">
+      <div>
+        <strong>
+          <Sparkles size={15} />
+          The adviser&rsquo;s own review
+        </strong>
+        {running ? (
+          <p className="small muted">
+            Re-reading everything you have saved. This runs in the background — leave the screen if
+            you like.
+          </p>
+        ) : review?.error ? (
+          <p className="small">The last review did not finish: {review.error}</p>
+        ) : review ? (
+          <>
+            <p className="small">{review.summary || 'Nothing needed changing.'}</p>
+            <p className="small muted">
+              {when?.toLocaleDateString()} · read {review.reviewed}, added {review.syntheses},
+              re-rated {review.updates}, withdrew {review.retracted}
+            </p>
+          </>
+        ) : (
+          <p className="small muted">
+            Every so often the adviser re-reads everything on its own, looking for what no single
+            note shows: themes across months, goals that have gone quiet, and its own conclusions
+            that no longer hold.
+          </p>
+        )}
+      </div>
+      <Button
+        variant="secondary"
+        busy={busy || running}
+        disabled={data?.mode === 'demo'}
+        onClick={async () => {
+          setBusy(true);
+          await run(() => api('memories/review', 'POST', {}), 'Review started.');
+          await reload();
+          setBusy(false);
+        }}
+      >
+        <Sparkles size={16} />
+        {running ? 'Reviewing…' : 'Review now'}
+      </Button>
+    </section>
+  );
+}
+/**
  * Merging is destructive in one direction -- two records become one -- so
  * nothing here happens automatically. The pairs are only a shortlist; the user
  * confirms each one, and dismissing a pair hides it for this visit rather than
@@ -187,7 +256,7 @@ export function Memory() {
 function DuplicatesPanel({ onClose }: { onClose: () => void }) {
   const { data, run } = useApp();
   const [pairs, setPairs] = useState<
-      { ids: [string, string]; score: number; basis: 'meaning' | 'wording' }[] | null
+      { ids: [string, string]; score: number; basis: 'meaning' | 'wording' | 'review' }[] | null
     >(null),
     [error, setError] = useState(''),
     [dismissed, setDismissed] = useState<string[]>([]),
@@ -217,8 +286,11 @@ function DuplicatesPanel({ onClose }: { onClose: () => void }) {
           return (
             <div className="duplicate-pair" key={key}>
               <span className="small muted">
-                {pair.basis === 'meaning' ? 'Similar meaning' : 'Similar wording'} ·{' '}
-                {Math.round(pair.score * 100)}%
+                {pair.basis === 'review'
+                  ? 'Flagged by the adviser’s review'
+                  : pair.basis === 'meaning'
+                    ? `Similar meaning · ${Math.round(pair.score * 100)}%`
+                    : `Similar wording · ${Math.round(pair.score * 100)}%`}
               </span>
               {both.map((m) => (
                 <div key={m.id}>

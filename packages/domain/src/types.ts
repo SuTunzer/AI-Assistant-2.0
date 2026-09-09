@@ -1,5 +1,18 @@
+// The first seven are things the user said. The last three are what the
+// adviser noticed when it read a note against everything else it knows: a
+// repeating pattern or psychological barrier, a risk building, an opening not
+// being acted on. Those always carry `assistant_hypothesis` certainty.
 export type MemoryKind =
-  'goal' | 'person' | 'relationship' | 'issue' | 'decision' | 'preference' | 'event';
+  | 'goal'
+  | 'person'
+  | 'relationship'
+  | 'issue'
+  | 'decision'
+  | 'preference'
+  | 'event'
+  | 'pattern'
+  | 'risk'
+  | 'opportunity';
 export type Epistemic =
   'user_reported' | 'user_confirmed' | 'assistant_hypothesis' | 'user_corrected';
 /** How much a memory should shape future advice: 3 core, 2 supporting, 1 incidental. */
@@ -99,8 +112,21 @@ export interface Episode extends BaseRecord {
   error?: string;
   demo?: boolean;
 }
+/** What the last whole-store consolidation pass did, for the Memory screen. */
+export interface Review {
+  at: string;
+  summary: string;
+  syntheses: number;
+  updates: number;
+  retracted: number;
+  duplicates: number;
+  reviewed: number;
+  model: string;
+  costAud: number;
+  error?: string;
+}
 export interface Job extends BaseRecord {
-  kind: 'episode' | 'capture';
+  kind: 'episode' | 'capture' | 'review';
   targetId: string;
   stage: string;
   status: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
@@ -140,8 +166,27 @@ export interface Settings {
   costBuffer: number;
   adviceProvider: 'anthropic' | 'gemini' | 'openai';
   adviceModel: string;
+  /** The model that reads a note for facts. Transcription stays on Gemini (audio). */
+  extractionProvider: 'anthropic' | 'gemini';
   extractionModel: string;
   transcriptionModel: string;
+  /**
+   * After the facts are saved, have the adviser (the advice model) read the
+   * note against the whole profile for patterns, risks, opportunities and a
+   * next move. The expensive half of a capture; off means facts only.
+   */
+  reflectOnCapture: boolean;
+  /**
+   * Let the adviser look things up for the user when a note raises something
+   * worth researching. Only impersonal queries the adviser writes leave the
+   * app -- never memories, never the note itself.
+   */
+  researchOnCapture: boolean;
+  /**
+   * How often the adviser re-reads the whole memory store on its own to
+   * consolidate it. 0 turns the standing review off.
+   */
+  consolidateDays: number;
   voiceProvider: 'gemini' | 'google-cloud' | 'openai';
   voiceModel: string;
   voice: string;
@@ -180,6 +225,7 @@ export interface Bootstrap {
   templates: Template[];
   budget: Budget;
   connections: ConnectionStatus;
+  review?: Review;
   taskSyncedAt?: string;
   taskError?: string;
 }
@@ -243,8 +289,12 @@ export const DEFAULT_SETTINGS: Settings = {
   costBuffer: 1.2,
   adviceProvider: 'anthropic',
   adviceModel: 'claude-sonnet-5',
+  extractionProvider: 'gemini',
   extractionModel: 'gemini-3.5-flash-lite',
   transcriptionModel: 'gemini-3.5-flash',
+  reflectOnCapture: true,
+  researchOnCapture: false,
+  consolidateDays: 7,
   voiceProvider: 'gemini',
   voiceModel: 'gemini-2.5-flash-preview-tts',
   voice: 'Kore',
@@ -268,4 +318,7 @@ export const MEMORY_LABELS: Record<MemoryKind, string> = {
   decision: 'Decision',
   preference: 'Preference',
   event: 'Update',
+  pattern: 'Pattern',
+  risk: 'Risk',
+  opportunity: 'Opportunity',
 };

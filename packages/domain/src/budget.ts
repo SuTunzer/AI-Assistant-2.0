@@ -42,6 +42,28 @@ export function episodeEstimate(s: Settings, minutes: number, news = false) {
         : 0.015);
   return toAud((text + voice + (news ? 0.04 : 0) + 0.03) * 1.25, s);
 }
+/**
+ * What a "remember" capture may cost before it runs: the extraction pass on
+ * the chosen memory model, the reflection pass on the advice model if it is
+ * on, and transcription for audio. A ceiling for the reservation; the job
+ * settles at what it actually spent.
+ */
+export function captureEstimate(s: Settings, audioBytes = 0) {
+  const extraction = textCost(s.extractionModel, 6000, 2500);
+  const reflection = s.reflectOnCapture ? textCost(s.adviceModel, 14000, 2500) : 0;
+  // Research is a second advice-model call over the search results it fetched.
+  const research =
+    s.reflectOnCapture && s.researchOnCapture ? textCost(s.adviceModel, 10000, 1500) : 0;
+  const audio = audioBytes ? Math.max(0.3, (audioBytes / 1e6) * 0.12) : 0;
+  return toAud((extraction + reflection + research) * 1.25, s) + audio;
+}
+/**
+ * The standing review reads the whole store in one call, so its input grows
+ * with the number of memories rather than with anything the user just did.
+ */
+export function consolidationEstimate(s: Settings, memories: number) {
+  return toAud(textCost(s.adviceModel, 2000 + memories * 220, 4000) * 1.3, s);
+}
 export function monthKey(timezone = 'Australia/Melbourne', now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,

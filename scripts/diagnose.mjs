@@ -108,7 +108,9 @@ const report = {
   settings: {
     adviceProvider: settings.adviceProvider,
     adviceModel: settings.adviceModel,
+    extractionProvider: settings.extractionProvider,
     extractionModel: settings.extractionModel,
+    reflectOnCapture: settings.reflectOnCapture,
     transcriptionModel: settings.transcriptionModel,
     voiceProvider: settings.voiceProvider,
     voiceModel: settings.voiceModel,

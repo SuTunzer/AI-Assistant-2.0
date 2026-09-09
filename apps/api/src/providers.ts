@@ -108,7 +108,19 @@ export async function modelText(
   let text = '',
     input = 0,
     output = 0;
+  // A declined request comes back as a normal 200 with no text. Without this
+  // it read as the provider returning nothing, which sent people to check
+  // their connection for something no retry would fix.
+  const declined = () =>
+    new DomainError(
+      'MODEL_DECLINED',
+      'The model declined to respond to this content. Nothing was changed.',
+      502,
+    );
   if (provider === 'anthropic') {
+    // Claude thinks adaptively whenever `thinking` is omitted; effort sets how
+    // deep. A caller asking for the fast pass gets low effort unless it chose.
+    const effort = options.effort ?? (options.thinking === 'fast' ? 'low' : undefined);
     const data = await (
       await providerFetch(`anthropic ${model}`, 'https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -122,10 +134,10 @@ export async function modelText(
           max_tokens: maxTokens,
           system: system + (json ? '\nReturn only the requested JSON object.' : ''),
           messages: [{ role: 'user', content: prompt }],
-          ...(options.effort || (json && options.schema)
+          ...(effort || (json && options.schema)
             ? {
                 output_config: {
-                  ...(options.effort ? { effort: options.effort } : {}),
+                  ...(effort ? { effort } : {}),
                   ...(json && options.schema
                     ? { format: { type: 'json_schema', schema: options.schema } }
                     : {}),
@@ -141,6 +153,7 @@ export async function modelText(
       .join('');
     input = data.usage?.input_tokens || 0;
     output = data.usage?.output_tokens || 0;
+    if (data.stop_reason === 'refusal') throw declined();
     if (data.stop_reason === 'max_tokens')
       throw new DomainError(
         'MODEL_OUTPUT_LIMIT',
@@ -172,7 +185,10 @@ export async function modelText(
     output =
       (data.usageMetadata?.candidatesTokenCount || 0) +
       (data.usageMetadata?.thoughtsTokenCount || 0);
-    if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS')
+    const finish = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason;
+    if (['SAFETY', 'PROHIBITED_CONTENT', 'RECITATION', 'BLOCKLIST'].includes(finish))
+      throw declined();
+    if (finish === 'MAX_TOKENS')
       throw new DomainError(
         'MODEL_OUTPUT_LIMIT',
         'The answer exceeded the selected size. Try a shorter request.',
@@ -395,6 +411,58 @@ export async function embed(text: string): Promise<number[] | undefined> {
   } catch {
     return;
   }
+}
+/**
+ * General web search, for looking something up on the user's behalf. Same
+ * fixed provider host as the news module, and the same rule: only the query
+ * string is sent. Nothing from a memory or a note is ever passed here -- the
+ * caller supplies impersonal queries the adviser wrote.
+ */
+export async function searchWeb(queries: string[]): Promise<Source[]> {
+  const key = await getSecret('BRAVE_API_KEY');
+  if (!key)
+    throw new DomainError(
+      'SEARCH_NOT_CONFIGURED',
+      'Connect a search provider in Settings to let the adviser look things up.',
+      409,
+    );
+  const sources: Source[] = [];
+  for (const query of queries.slice(0, 3)) {
+    const url = new URL('https://api.search.brave.com/res/v1/web/search');
+    url.search = new URLSearchParams({
+      q: query.slice(0, 150),
+      count: '5',
+      country: 'au',
+      search_lang: 'en',
+      safesearch: 'moderate',
+    }).toString();
+    const data = await (
+      await providerFetch(
+        'brave web search',
+        url.href,
+        { headers: { Accept: 'application/json', 'X-Subscription-Token': key } },
+        12000,
+      )
+    ).json();
+    for (const item of data.web?.results || []) {
+      try {
+        const u = new URL(item.url);
+        if (u.protocol !== 'https:' || sources.some((s) => s.url === u.href)) continue;
+        sources.push({
+          id: 'web-' + sources.length,
+          title: String(item.title || '').slice(0, 300),
+          url: u.href,
+          summary: String(item.description || '')
+            .replace(/<[^>]*>/g, '')
+            .slice(0, 1200),
+          publishedAt: item.page_age,
+        });
+      } catch {
+        /* A result without a usable URL is skipped rather than failing the search. */
+      }
+    }
+  }
+  return sources.slice(0, 12);
 }
 export async function searchNews(interests: string[]): Promise<Source[]> {
   if (config.NEWS_STORAGE_RIGHTS_CONFIRMED !== 'true')
