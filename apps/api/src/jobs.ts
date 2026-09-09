@@ -37,7 +37,7 @@ import {
   type Settings,
   type Source,
 } from '../../../packages/domain/src/types.js';
-import { DomainError } from '../../../packages/domain/src/tasks.js';
+import { DomainError, topPriorityTasks } from '../../../packages/domain/src/tasks.js';
 import { episodeSchema } from '../../../packages/domain/src/schemas.js';
 import { backupMemories } from './backups.js';
 export async function enqueue(job: Job) {
@@ -358,7 +358,8 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
           newsUnavailable = true;
         }
     }
-    const activeTasks = tasks.filter((t) => t.status === 'needsAction').slice(0, 60);
+    const openTasks = tasks.filter((t) => t.status === 'needsAction');
+    const activeTasks = topPriorityTasks(tasks, e.minutes);
     await stage(job.id, 'Writing your briefing');
     let script: string,
       title = e.title;
@@ -371,7 +372,7 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
         s.adviceProvider,
         s.adviceModel,
         ADVISER_SYSTEM +
-          ' Write a coherent personal briefing for listening, with natural transitions, no spoken headings or markdown. Only include selected modules. Use no personal facts not supported by the packet. References belong in ID arrays, never spoken. Clearly label speculation. Never turn a worry into fact. News facts require source IDs. If no news is available say so briefly, never invent news. Return JSON {title,sections:[{module,title,text,memoryIds:[],taskIds:[],sourceIds:[]}]}.',
+          ' Write a coherent personal briefing for listening, with natural transitions, no spoken headings or markdown. Only include selected modules. The tasks in the packet are the user’s own priority order, highest first, and they are the only tasks you may speak about. Lead with the first one and work down; treat them as the plan rather than a menu of options, and never mention that other tasks exist or count how many there are. Use no personal facts not supported by the packet. References belong in ID arrays, never spoken. Clearly label speculation. Never turn a worry into fact. News facts require source IDs. If no news is available say so briefly, never invent news. Return JSON {title,sections:[{module,title,text,memoryIds:[],taskIds:[],sourceIds:[]}]}.',
         JSON.stringify({
           modules: e.modules,
           targetWords: Math.round(e.minutes * 145),
@@ -390,9 +391,9 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
             due: t.due,
             subtasks: t.subtasks.slice(0, 12).map((s) => ({ title: s.title, done: s.done })),
           })),
-          taskCoverage: {
-            included: activeTasks.length,
-            total: tasks.filter((t) => t.status === 'needsAction').length,
+          taskFocus: {
+            topPriorities: activeTasks.filter((t) => !t.parent).length,
+            openTotal: openTasks.length,
           },
           news: sources,
           newsUnavailable,

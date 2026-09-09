@@ -105,6 +105,21 @@ export function fromGoogleTask(listId: string, g: Record<string, any>): Task {
     metadataValid: p.valid,
   };
 }
+/**
+ * The tasks a briefing may speak about: the top of the user’s own priority
+ * order, plus the native children of those tasks. The list order is the
+ * priority order, so this is a cut from the top rather than a ranking. Scaled
+ * gently by length — a longer briefing earns a couple more, never the whole
+ * backlog, because the point is what to do next.
+ */
+export function topPriorityTasks(tasks: Task[], minutes: number): Task[] {
+  const open = tasks.filter((t) => t.status === 'needsAction');
+  const focus = open
+    .filter((t) => !t.parent)
+    .slice(0, Math.max(3, Math.min(8, Math.ceil(minutes / 2))));
+  const ids = new Set(focus.map((t) => t.id));
+  return open.filter((t) => ids.has(t.id) || (t.parent ? ids.has(t.parent) : false));
+}
 export function orderTasks(tasks: Task[]): Task[] {
   const output: Task[] = [];
   const visited = new Set<string>();

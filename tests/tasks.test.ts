@@ -4,8 +4,10 @@ import {
   editChecklist,
   fromGoogleTask,
   orderTasks,
+  topPriorityTasks,
   META_DELIMITER,
 } from '../packages/domain/src/tasks';
+import type { Task } from '../packages/domain/src/types';
 const item = {
   id: 'step-1',
   title: 'First action',
@@ -84,5 +86,42 @@ describe('compatibility with the existing task assistant', () => {
     expect(
       parseTaskNotes(editChecklist(raw, 'a', { move: 'up' })).subtasks.map((s) => s.id),
     ).toEqual(['a', 'b', 'c']);
+  });
+  it('gives a briefing the top of the priority order, not the backlog', () => {
+    const task = (id: string, extra: Partial<Task> = {}): Task => ({
+      id,
+      listId: 'personal',
+      title: id,
+      status: 'needsAction',
+      position: id,
+      notes: '',
+      subtasks: [],
+      tags: [],
+      metadataValid: true,
+      ...extra,
+    });
+    const list = [
+      task('a'),
+      task('a-child', { parent: 'a' }),
+      task('b'),
+      task('c'),
+      task('d'),
+      task('e'),
+      task('done', { status: 'completed' }),
+    ];
+    // A short briefing takes the first three top-level tasks, in list order,
+    // and carries their children with them.
+    expect(topPriorityTasks(list, 6).map((t) => t.id)).toEqual(['a', 'a-child', 'b', 'c']);
+    // Length earns a couple more, and never the completed ones.
+    expect(topPriorityTasks(list, 16).map((t) => t.id)).toEqual([
+      'a',
+      'a-child',
+      'b',
+      'c',
+      'd',
+      'e',
+    ]);
+    // Three is the floor however short the briefing is.
+    expect(topPriorityTasks(list, 1).filter((t) => !t.parent)).toHaveLength(3);
   });
 });

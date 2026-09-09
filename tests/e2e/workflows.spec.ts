@@ -56,6 +56,17 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
     .getByRole('dialog')
     .getByRole('textbox', { name: 'Details', exact: true })
     .fill('A ten minute walk helps me find perspective.');
+  // Linking used to be one-way: a native multi-select could only add. A tick
+  // must come back off again, by tap as well as by click.
+  await page.getByRole('dialog').getByText('Connect to people, memories and tasks').click();
+  const link = page.getByRole('dialog').getByRole('checkbox', { name: 'Run three times a week' });
+  await link.check();
+  await expect(link).toBeChecked();
+  await link.uncheck();
+  await expect(link).not.toBeChecked();
+  await page.screenshot({
+    path: 'test-results/' + info.project.name + '-memory-links.png',
+  });
   await page.getByRole('button', { name: 'Save & mark reviewed' }).click();
   await expect(
     page.getByText('A ten minute walk helps me find perspective.', { exact: true }),

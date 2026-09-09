@@ -325,6 +325,51 @@ function DuplicatesPanel({ onClose }: { onClose: () => void }) {
     </Modal>
   );
 }
+/**
+ * Links to other memories and tasks. A native multi-select needed Ctrl-click
+ * to deselect and offered no way at all to deselect by touch, so a tick that
+ * toggles both ways is the whole point here.
+ */
+function LinkPicker({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; title: string }[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  return (
+    <div className="link-picker">
+      <span className="link-picker-label">
+        {label}
+        {selected.length > 0 && <Tag>{selected.length}</Tag>}
+      </span>
+      {options.length ? (
+        <div className="link-picker-list">
+          {options.map((o) => (
+            <label key={o.id}>
+              <input
+                type="checkbox"
+                checked={selected.includes(o.id)}
+                onChange={(e) =>
+                  onChange(
+                    e.target.checked ? [...selected, o.id] : selected.filter((id) => id !== o.id),
+                  )
+                }
+              />
+              <span>{o.title}</span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="small muted">Nothing to link to yet.</p>
+      )}
+    </div>
+  );
+}
 function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () => void }) {
   const { data, run } = useApp();
   const [title, setTitle] = useState(memory?.title || ''),
@@ -423,37 +468,20 @@ function MemoryEditor({ memory, onClose }: { memory?: MemoryRecord; onClose: () 
             <LinkIcon size={15} />
             Connect to people, memories and tasks
           </summary>
-          <label>
-            Related memories
-            <select
-              multiple
-              value={entityIds}
-              onChange={(e) => setEntities(Array.from(e.target.selectedOptions, (o) => o.value))}
-            >
-              {data?.memories
-                .filter((m) => m.id !== memory?.id)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.title}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            Related tasks
-            <select
-              multiple
-              value={taskIds}
-              onChange={(e) => setTasks(Array.from(e.target.selectedOptions, (o) => o.value))}
-            >
-              {data?.tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="small muted">On a computer, hold Ctrl or Command to select several.</p>
+          <LinkPicker
+            label="Related memories"
+            options={(data?.memories || [])
+              .filter((m) => m.id !== memory?.id)
+              .map((m) => ({ id: m.id, title: m.title }))}
+            selected={entityIds}
+            onChange={setEntities}
+          />
+          <LinkPicker
+            label="Related tasks"
+            options={(data?.tasks || []).map((t) => ({ id: t.id, title: t.title }))}
+            selected={taskIds}
+            onChange={setTasks}
+          />
         </details>
         {memory && (
           <p className="small muted">
