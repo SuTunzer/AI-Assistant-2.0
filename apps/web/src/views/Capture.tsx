@@ -22,7 +22,7 @@ import type { Capture as CaptureRecord } from '../types';
 export function Capture() {
   const { data, reload, setError, toast } = useApp();
   const [mode, setMode] = useState<'remember' | 'temporary'>('remember'),
-    [tab, setTab] = useState<'voice' | 'write'>('voice'),
+    [tab, setTab] = useState<'voice' | 'write'>('write'),
     [text, setText] = useState(''),
     [saved, setSaved] = useState<Draft[]>([]),
     [busy, setBusy] = useState(false),
@@ -101,20 +101,20 @@ export function Capture() {
         <section className="card capture-card">
           <div className="segmented">
             <button
-              className={tab === 'voice' ? 'selected' : ''}
-              onClick={() => setTab('voice')}
-              disabled={active}
-            >
-              <Mic size={17} />
-              Record
-            </button>
-            <button
               className={tab === 'write' ? 'selected' : ''}
               onClick={() => setTab('write')}
               disabled={active}
             >
               <NotebookPen size={17} />
               Type
+            </button>
+            <button
+              className={tab === 'voice' ? 'selected' : ''}
+              onClick={() => setTab('voice')}
+              disabled={active}
+            >
+              <Mic size={17} />
+              Record
             </button>
           </div>
           <div className="capture-mode">
@@ -209,7 +209,7 @@ export function Capture() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 maxLength={50000}
-                rows={12}
+                rows={6}
               />
               <div className="form-footer">
                 <span className="muted small">Plain text is fine.</span>

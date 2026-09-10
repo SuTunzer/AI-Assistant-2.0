@@ -23,9 +23,8 @@ test('task actions, reviewed memory, temporary capture and an offline episode', 
     .getByRole('dialog')
     .getByRole('textbox', { name: 'Task', exact: true })
     .fill('Send the small first draft');
-  await page.getByRole('button', { name: 'Review task', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('Confirm new task');
-  await page.getByRole('button', { name: 'Confirm and add task' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add task', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Complete Send the small first draft', exact: true }),
   ).toBeVisible();
@@ -144,6 +143,7 @@ test('recovers a microphone recording after leaving the capture screen', async (
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/#/capture');
+  await page.getByRole('button', { name: 'Record', exact: true }).click();
   await page.getByRole('button', { name: 'Start recording', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Recording.' })).toBeVisible();
   await page.waitForTimeout(2200);

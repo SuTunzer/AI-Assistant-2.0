@@ -28,6 +28,7 @@ import {
 } from '../../../packages/domain/src/budget.js';
 import {
   MODULES,
+  MODULE_BRIEFS,
   type Episode,
   type Job,
   type Capture,
@@ -91,7 +92,7 @@ export async function createEpisode(input: unknown) {
     ...recordBase(id),
     title:
       body.modules.length === 1
-        ? MODULES.find((m) => m.id === body.modules[0])!.label
+        ? (MODULES.find((m) => m.id === body.modules[0])?.label ?? 'Daily briefing')
         : 'Daily briefing',
     modules: body.modules,
     minutes: body.minutes,
@@ -292,6 +293,39 @@ export async function retryCapture(id: string) {
   } catch {}
   return next;
 }
+const wordCount = (v: string) => v.trim().split(/\s+/).filter(Boolean).length;
+const SPOKEN_WORDS_PER_MINUTE = 150;
+/**
+ * The word budget for a briefing. Narration runs at roughly 150 words a
+ * minute, so a chosen length is really a word count — and it is a requirement
+ * the listener set, not a target the writer may quietly undershoot. `minWords`
+ * is what a short first draft is measured against before it is sent back to be
+ * written out properly.
+ */
+function briefingLength(minutes: number, modules: Module[]) {
+  const targetWords = Math.round(minutes * SPOKEN_WORDS_PER_MINUTE);
+  const chosen = MODULES.filter((m) => modules.includes(m.id));
+  const weight = chosen.reduce((sum, m) => sum + m.weight, 0) || 1;
+  return {
+    minutes,
+    spokenWordsPerMinute: SPOKEN_WORDS_PER_MINUTE,
+    targetWords,
+    minWords: Math.round(targetWords * 0.9),
+    maxWords: Math.round(targetWords * 1.15),
+    perSection: Object.fromEntries(
+      chosen.map((m) => [m.id, Math.round((targetWords * m.weight) / weight)]),
+    ),
+  };
+}
+const BRIEFING_SYSTEM = [
+  ADVISER_SYSTEM,
+  'Write a coherent personal briefing for listening, with natural transitions, no spoken headings or markdown.',
+  'Cover every module in modules and nothing else. moduleBriefs says what each of those sections must actually contain — treat a brief as that section’s instructions, not a theme to riff on.',
+  'The tasks in the packet are the user’s own priority order, highest first, and they are the only tasks you may speak about. Lead with the first one and work down; treat them as the plan rather than a menu of options, and never mention that other tasks exist or count how many there are.',
+  'length is a requirement the listener set, not a suggestion. The sections together must come to at least length.minWords and no more than length.maxWords, aiming at length.targetWords; length.perSection is roughly how to divide it. A section that stops well short of its share is unfinished — go further into the specifics already in the packet, say the second and third thing rather than only the first, and show your reasoning. Never pad, repeat yourself, or restate a point in new words to reach the count.',
+  'Use no personal facts not supported by the packet. References belong in ID arrays, never spoken. Clearly label speculation. Never turn a worry into fact. News facts require source IDs. If no news is available say so briefly, never invent news.',
+  'Return JSON {title,sections:[{module,title,text,memoryIds:[],taskIds:[],sourceIds:[]}]}.',
+].join(' ');
 const briefingSchema = z.object({
   title: z.string().max(160),
   sections: z
@@ -368,90 +402,127 @@ async function episodeJob(job: Job, input: { custom: string; settings: Settings;
       script =
         'This is a sample briefing from Steadier. In your connected workspace, it would be built from your own tasks and memories.\n\nStart with one task. You do not have to finish everything today. Give the proposal outline fifteen uninterrupted minutes, write a rough version, then pick the next step.\n\nKeep the wider picture in view. Getting organised is a means to an end: more room for the work, people and decisions that matter. Your relationships, your health and your thinking time count.\n\nDo one thing, then the next.';
     } else {
-      const r = await modelJson(
-        s.adviceProvider,
-        s.adviceModel,
-        ADVISER_SYSTEM +
-          ' Write a coherent personal briefing for listening, with natural transitions, no spoken headings or markdown. Only include selected modules. The tasks in the packet are the user’s own priority order, highest first, and they are the only tasks you may speak about. Lead with the first one and work down; treat them as the plan rather than a menu of options, and never mention that other tasks exist or count how many there are. Use no personal facts not supported by the packet. References belong in ID arrays, never spoken. Clearly label speculation. Never turn a worry into fact. News facts require source IDs. If no news is available say so briefly, never invent news. Return JSON {title,sections:[{module,title,text,memoryIds:[],taskIds:[],sourceIds:[]}]}.',
-        JSON.stringify({
-          modules: e.modules,
-          targetWords: Math.round(e.minutes * 145),
-          custom: input.custom,
-          feedback: await feedbackContext(),
-          memories: memories.map((m) => ({
-            id: m.id,
-            title: m.title,
-            text: m.text.slice(0, 1800),
-            status: m.status,
-            epistemic: m.epistemic,
-          })),
-          tasks: activeTasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            due: t.due,
-            subtasks: t.subtasks.slice(0, 12).map((s) => ({ title: s.title, done: s.done })),
-          })),
-          taskFocus: {
-            topPriorities: activeTasks.filter((t) => !t.parent).length,
-            openTotal: openTasks.length,
-          },
-          news: sources,
-          newsUnavailable,
-        }),
-        // Thinking tokens come out of this budget before the script is written,
-        // so the ceiling has to cover both or the reply is cut mid-JSON.
-        Math.min(16000, 6000 + e.minutes * 900),
-        {
-          effort: 'low',
-          // Constraining the module list here is what stops a section arriving
-          // for a module the listener did not choose.
-          schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              sections: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    module: { type: 'string', enum: [...e.modules] },
-                    title: { type: 'string' },
-                    text: { type: 'string' },
-                    memoryIds: { type: 'array', items: { type: 'string' } },
-                    taskIds: { type: 'array', items: { type: 'string' } },
-                    sourceIds: { type: 'array', items: { type: 'string' } },
-                  },
-                  required: ['module', 'title', 'text', 'memoryIds', 'taskIds', 'sourceIds'],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ['title', 'sections'],
-            additionalProperties: false,
-          },
-        },
-      );
-      const data = briefingSchema.parse(r.data);
+      const length = briefingLength(e.minutes, e.modules);
       const allowedMemory = new Set(memories.map((m) => m.id)),
         allowedTasks = new Set(activeTasks.map((t) => t.id)),
         allowedSources = new Set(sources.map((x) => x.id));
-      for (const section of data.sections) {
-        if (!e.modules.includes(section.module))
-          throw new DomainError(
-            'UNSUPPORTED_BRIEFING',
-            'The briefing covered a section you did not choose. Please retry.',
-            502,
-          );
-        // A reference that points nowhere is dropped rather than failing the
-        // whole briefing: these IDs are never spoken, and the spoken words are
-        // checked against the evidence in the next step regardless.
-        section.memoryIds = section.memoryIds.filter((id) => allowedMemory.has(id));
-        section.taskIds = section.taskIds.filter((id) => allowedTasks.has(id));
-        section.sourceIds = section.sourceIds.filter((id) => allowedSources.has(id));
+      const packet = {
+        modules: e.modules,
+        // Module ids alone left the writer to guess from a label, which is how
+        // a strategic review turned into generic advice and a motivational
+        // section into a pep talk about nothing in particular.
+        moduleBriefs: Object.fromEntries(
+          e.modules
+            .map((m) => [m, MODULE_BRIEFS[m as keyof typeof MODULE_BRIEFS]] as const)
+            .filter(([, brief]) => brief),
+        ),
+        length,
+        custom: input.custom,
+        feedback: await feedbackContext(),
+        memories: memories.map((m) => ({
+          id: m.id,
+          title: m.title,
+          text: m.text.slice(0, 1800),
+          status: m.status,
+          epistemic: m.epistemic,
+        })),
+        tasks: activeTasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          due: t.due,
+          subtasks: t.subtasks.slice(0, 12).map((x) => ({ title: x.title, done: x.done })),
+        })),
+        taskFocus: {
+          note: `These are the user's next ${activeTasks.filter((t) => !t.parent).length} tasks, in their own priority order, highest first. They are the plan, and the only tasks you may speak about.`,
+          openTotal: openTasks.length,
+        },
+        news: sources,
+        newsUnavailable,
+      };
+      const write = async (short?: { draft: string; words: number }) => {
+        const r = await modelJson(
+          s.adviceProvider,
+          s.adviceModel,
+          BRIEFING_SYSTEM,
+          JSON.stringify(
+            short
+              ? {
+                  ...packet,
+                  previousDraft: short.draft,
+                  previousDraftWords: short.words,
+                  rewrite: `Your last draft ran to ${short.words} words — far short of the ${length.minutes} minutes the listener asked for. Write it again at ${length.targetWords} words, and never below ${length.minWords}. Keep what was good and develop it: go further into each task and each goal, give the specifics and the reasoning you left out, and finish every section's brief. Use only the evidence in this packet, and do not pad or repeat yourself to make up the length.`,
+                }
+              : packet,
+          ),
+          // Thinking tokens come out of this budget before a word is written,
+          // so the ceiling has to cover both the reasoning and a script of the
+          // full requested length, or the reply is cut off mid-JSON.
+          Math.min(24000, 8000 + e.minutes * 1100),
+          {
+            effort: 'low',
+            // Constraining the module list here is what stops a section
+            // arriving for a module the listener did not choose.
+            schema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                sections: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      module: { type: 'string', enum: [...e.modules] },
+                      title: { type: 'string' },
+                      text: { type: 'string' },
+                      memoryIds: { type: 'array', items: { type: 'string' } },
+                      taskIds: { type: 'array', items: { type: 'string' } },
+                      sourceIds: { type: 'array', items: { type: 'string' } },
+                    },
+                    required: ['module', 'title', 'text', 'memoryIds', 'taskIds', 'sourceIds'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ['title', 'sections'],
+              additionalProperties: false,
+            },
+          },
+        );
+        const data = briefingSchema.parse(r.data);
+        for (const section of data.sections) {
+          if (!e.modules.includes(section.module))
+            throw new DomainError(
+              'UNSUPPORTED_BRIEFING',
+              'The briefing covered a section you did not choose. Please retry.',
+              502,
+            );
+          // A reference that points nowhere is dropped rather than failing the
+          // whole briefing: these IDs are never spoken, and the spoken words
+          // are checked against the evidence in the next step regardless.
+          section.memoryIds = section.memoryIds.filter((id) => allowedMemory.has(id));
+          section.taskIds = section.taskIds.filter((id) => allowedTasks.has(id));
+          section.sourceIds = section.sourceIds.filter((id) => allowedSources.has(id));
+        }
+        return { title: data.title, script: data.sections.map((x) => x.text).join('\n\n') };
+      };
+      // A first draft routinely lands well under the length that was asked
+      // for. Rather than hand someone who chose ten minutes a three-minute
+      // track, a short draft goes back once to be written out against the same
+      // evidence, and whichever attempt got closer is the one that ships.
+      let draft = await write();
+      let words = wordCount(draft.script);
+      if (words < length.minWords) {
+        await stage(job.id, 'Writing it out to length');
+        const longer = await write({ draft: draft.script, words });
+        const longerWords = wordCount(longer.script);
+        if (longerWords > words) {
+          draft = longer;
+          words = longerWords;
+        }
       }
-      title = data.title;
-      script = data.sections.map((x) => x.text).join('\n\n');
-      if (script.split(/\s+/).length > e.minutes * 220 + 100)
+      title = draft.title;
+      script = draft.script;
+      if (words > e.minutes * 220 + 100)
         throw new DomainError(
           'SCRIPT_TOO_LONG',
           'This draft exceeded the chosen length. Try a shorter or more focused mix.',

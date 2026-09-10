@@ -13,6 +13,7 @@ import {
   LogOut,
   RotateCcw,
   Cloud,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../context';
 import { api, appMode } from '../lib/api';
@@ -23,6 +24,71 @@ import { Button, Modal, SectionTitle, Tag, Money } from '../components/ui';
 import { buildInfo, buildLabel, loadLatestBuild } from '../build-info';
 import type { Settings as SettingsType, ConnectionStatus } from '../types';
 import { modelsFor } from '../../../../packages/domain/src/budget';
+/**
+ * The same standing review the Memory screen can start, put where someone
+ * looking for a housekeeping switch would go for it. It is deliberately a
+ * tidy-up rather than a rewrite: the adviser may group what looks duplicated,
+ * connect memories that belong together, re-rate what matters and withdraw its
+ * own stale conclusions — it never edits the user's own words, and merging
+ * still waits for them to confirm each pair.
+ */
+function TidyMemory() {
+  const { data, run, reload } = useApp();
+  const [busy, setBusy] = useState(false);
+  const review = data?.review;
+  const running = data?.jobs.some((j) => j.kind === 'review' && j.status !== 'complete');
+  const when = review?.at ? new Date(review.at) : null;
+  return (
+    <section className="card settings-section">
+      <h3>Tidy up memory</h3>
+      <p className="muted">
+        Have the adviser re-read everything you have saved: group memories that say the same thing,
+        connect ones that belong together, re-rate what matters and withdraw conclusions of its own
+        that no longer hold. It changes nothing you wrote, and merges wait for you to confirm them.
+      </p>
+      {running ? (
+        <p className="small muted">
+          Re-reading your memory now. This runs in the background — you can leave this screen.
+        </p>
+      ) : review?.error ? (
+        <p className="small">The last tidy-up did not finish: {review.error}</p>
+      ) : review ? (
+        <>
+          <p className="small">{review.summary || 'Nothing needed changing.'}</p>
+          <p className="small muted">
+            {when?.toLocaleDateString()} · read {review.reviewed}, added {review.syntheses},
+            re-rated {review.updates}, withdrew {review.retracted}, flagged {review.duplicates} to
+            merge
+          </p>
+        </>
+      ) : (
+        <p className="small muted">No tidy-up has run yet.</p>
+      )}
+      {appMode === 'demo' && (
+        <p className="small muted">A tidy-up needs your connected workspace and an AI provider.</p>
+      )}
+      <div className="button-row">
+        <Button
+          variant="secondary"
+          busy={busy || running}
+          disabled={appMode === 'demo'}
+          onClick={async () => {
+            setBusy(true);
+            await run(() => api('memories/review', 'POST', {}), 'Tidy-up started.');
+            await reload();
+            setBusy(false);
+          }}
+        >
+          <Sparkles size={16} />
+          {running ? 'Tidying…' : 'Tidy up now'}
+        </Button>
+        <a className="text-button" href="#/memory">
+          Review what it found <ArrowUpRight size={15} />
+        </a>
+      </div>
+    </section>
+  );
+}
 export function Settings() {
   const { data, run, reload, setError, toast } = useApp();
   const [form, setForm] = useState<SettingsType>(data!.settings),
@@ -363,9 +429,10 @@ export function Settings() {
             <p className="small muted">
               The standing review is the adviser re-reading your whole memory on its own, with no
               note in front of it, to consolidate what is there. It runs only when something has
-              changed, and you can start one any time from Memory.
+              changed.
             </p>
           </section>
+          <TidyMemory />
           <section className="card settings-section">
             <h3>Voice</h3>
             <div className="form-pair">

@@ -762,9 +762,13 @@ main {
   display: flex;
   gap: 11px;
   align-items: center;
-  min-height: 63px;
+  min-height: 44px;
   border-bottom: 1px solid #f0f1eb;
-  padding: 10px 0;
+  padding: 6px 0;
+}
+/* Written, not yet acknowledged by Google. Readable, plainly not settled. */
+.task-row.pending {
+  opacity: 0.55;
 }
 .task-check {
   height: 17px;
@@ -794,10 +798,17 @@ main {
   flex: 1;
   min-width: 0;
 }
+/* Two lines, then an ellipsis. A long title is a title to open, not to read
+   in full from the list, and letting one run to four lines pushed the next
+   task off the screen. */
 .task-body > span {
-  font-size: 15px;
-  line-height: 1.5;
-  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
 }
 .task-meta {
@@ -807,7 +818,10 @@ main {
   flex-wrap: wrap;
   font-size: 12px;
   color: #72756b;
-  margin-top: 5px;
+  margin-top: 2px;
+}
+.task-meta:empty {
+  display: none;
 }
 .task-meta span {
   display: flex;
@@ -1413,9 +1427,10 @@ main {
   border: 0;
   background: #fbfcf6;
   font-family: var(--serif);
-  font-size: 24px;
-  min-height: 295px;
-  padding: 12px;
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 148px;
+  padding: 11px;
 }
 .learned-card {
   margin-top: 16px;
@@ -3229,8 +3244,8 @@ body:has(.persistent-player) .page-footer {
     font-size: 12px;
   }
   .task-row {
-    min-height: 69px;
-    gap: 13px;
+    min-height: 46px;
+    gap: 12px;
   }
   .task-check {
     width: 19px;
@@ -3241,7 +3256,7 @@ body:has(.persistent-player) .page-footer {
     font-size: 15px;
   }
   .task-meta {
-    font-size: 12px;
+    font-size: 11px;
   }
   .task-row > .icon-button {
     width: 28px;
@@ -3478,7 +3493,6 @@ body:has(.persistent-player) .page-footer {
     font-size: 13px;
   }
   .write-capture textarea {
-    font-size: 22px;
     padding: 10px;
   }
   .form-footer .small {
@@ -3847,6 +3861,9 @@ body:has(.persistent-player) .page-footer {
   .form-grid {
     gap: 12px;
   }
+  .form-pair {
+    grid-template-columns: 1fr;
+  }
   .modal input,
   .modal textarea {
     font-size: 17px !important;
@@ -4058,7 +4075,7 @@ body:has(.persistent-player) .page-footer {
     min-height: 0;
   }
   .write-capture textarea {
-    min-height: 180px;
+    min-height: 90px;
   }
 
   /* The hero art is decorative and sits mostly off-canvas on a phone, while
@@ -4194,7 +4211,6 @@ body:has(.persistent-player) .page-footer {
 /* Content type. The row title is the loudest thing on the screen; everything
    else on the row is support. Phone only — desktop keeps the current scale. */
 @media (max-width: 767px) {
-  .task-body > span,
   .checklist-row > span,
   .memory-main h3,
   .episode-info h3 {
@@ -4203,9 +4219,15 @@ body:has(.persistent-player) .page-footer {
     line-height: 1.35;
     letter-spacing: -0.2px;
   }
+  .task-body > span {
+    font-size: 16px;
+    font-weight: 550;
+    line-height: 1.3;
+    letter-spacing: -0.2px;
+  }
   .task-meta,
   .task-meta > span {
-    font-size: 14px;
+    font-size: 12px;
   }
   .section-title h2,
   .tasks-card h2,
@@ -4225,12 +4247,22 @@ body:has(.persistent-player) .page-footer {
      the only way to set priority order by touch. */
   .task-row {
     gap: 7px;
+    padding: 5px 0;
+  }
+  /* Two lines of 16px title is a 42px body, so the row still clears a thumb
+     without the 44px minimum padding it out. */
+  .task-body.task-body {
+    min-height: 0;
   }
   .task-row > .icon-button {
     display: none;
   }
-  .task-reorder .icon-button {
-    width: 30px;
+  /* The blanket 44px touch target below applies to every icon button, and
+     two of them stacked were setting the height of every task row at 88px
+     whatever the title said. The pair still adds up to a 48px column; it is
+     split into two targets rather than reserving 44px for each. */
+  .task-reorder .icon-button.icon-button {
+    width: 34px;
     height: 24px;
   }
   .checklist-reorder {

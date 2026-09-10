@@ -51,13 +51,15 @@ import {
 } from '../../../packages/domain/src/schemas.js';
 import { DomainError } from '../../../packages/domain/src/tasks.js';
 import { toAud, MODEL_PRICES } from '../../../packages/domain/src/budget.js';
-import type {
-  Memory,
-  Proposal,
-  Episode,
-  Job,
-  Capture,
-  Task,
+import {
+  normalizeModules,
+  type Memory,
+  type Module,
+  type Proposal,
+  type Episode,
+  type Job,
+  type Capture,
+  type Task,
 } from '../../../packages/domain/src/types.js';
 import { backupMemories, restoreBackup, purgeBackups } from './backups.js';
 // Every collection the backend writes, for the Settings data browser.
@@ -230,9 +232,23 @@ export function createApp() {
     await deleteMemory(String(req.params.id));
     res.status(204).end();
   });
-  app.post('/api/proposals', async (req, res) =>
-    res.status(201).json(await addProposal(proposalSchema.parse(req.body))),
-  );
+  // A suggestion the adviser raised still has to be reviewed and approved
+  // separately. A task the user typed themselves does not: they have already
+  // decided, so `approve` collapses the two round trips into one and returns
+  // the created task with it, so the caller can swap it in without refetching.
+  app.post('/api/proposals', async (req, res) => {
+    const { approve, ...value } = proposalSchema
+      .extend({ approve: z.boolean().default(false) })
+      .parse(req.body);
+    const proposal = await addProposal(value);
+    if (!approve) return res.status(201).json(proposal);
+    const accepted = await approveProposal(proposal.id);
+    const snapshot = await store.get('snapshots', 'tasks');
+    res.status(201).json({
+      ...accepted,
+      task: ((snapshot?.tasks || []) as Task[]).find((t) => t.id === accepted.taskId),
+    });
+  });
   app.post('/api/proposals/:id/approve', async (req, res) => {
     const edits = proposalSchema.partial().parse(req.body || {});
     res.json(await approveProposal(String(req.params.id), edits));
@@ -379,7 +395,8 @@ export function createApp() {
             related: p?.related ?? [],
             recent: p?.recent ?? [],
             hypotheses: p?.hypotheses ?? [],
-            tasks: p?.tasks ?? [],
+            nextTasks: p?.tasks ?? [],
+            taskFocus: p?.taskFocus,
             taskSnapshotAt: p?.taskSnapshotAt,
             temporary: b.mode === 'temporary',
           }),
@@ -471,7 +488,11 @@ export function createApp() {
     const body = z
       .object({
         name: z.string().trim().min(1).max(80),
-        modules: z.array(moduleSchema).min(1).max(7),
+        modules: z
+          .array(moduleSchema)
+          .min(1)
+          .max(7)
+          .transform((v) => normalizeModules(v as Module[])),
         minutes: z.number().int().min(1).max(30),
         custom: z.string().max(2000).default(''),
       })

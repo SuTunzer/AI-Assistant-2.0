@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeModules, type Module } from './types.js';
 export const moduleSchema = z.enum([
   'priorities',
   'motivation',
@@ -58,7 +59,7 @@ export const episodeSchema = z
       .array(moduleSchema)
       .min(1)
       .max(7)
-      .transform((v) => [...new Set(v)]),
+      .transform((v) => normalizeModules(v as Module[])),
     minutes: z.number().int().min(1).max(30),
     custom: z.string().trim().max(2000).default(''),
     idempotencyKey: z.string().min(8).max(100),
@@ -98,7 +99,11 @@ export const settingsSchema = z.object({
   newsInterests: z.array(z.string().max(150)).max(12),
   transcriptHours: z.union([z.literal(0), z.literal(24)]),
   episodeDays: z.number().int().min(1).max(30),
-  defaultModules: z.array(moduleSchema).min(1).max(7),
+  defaultModules: z
+    .array(moduleSchema)
+    .min(1)
+    .max(7)
+    .transform((v) => normalizeModules(v as Module[])),
   defaultMinutes: z.number().int().min(1).max(30),
 });
 // Every candidate carries the words it came from. The ceilings are a guard

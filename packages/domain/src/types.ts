@@ -17,6 +17,12 @@ export type Epistemic =
   'user_reported' | 'user_confirmed' | 'assistant_hypothesis' | 'user_corrected';
 /** How much a memory should shape future advice: 3 core, 2 supporting, 1 incidental. */
 export type Importance = 1 | 2 | 3;
+/**
+ * `motivation` is retired as a topic of its own: a push to start belongs with
+ * the tasks it is pushing towards, so it is folded into `priorities`. The id
+ * stays in the union because saved mixes, settings and older episodes still
+ * carry it — `normalizeModules` turns it back into `priorities` on the way in.
+ */
 export type Module =
   'priorities' | 'motivation' | 'strategy' | 'reflection' | 'relationships' | 'news' | 'custom';
 export interface BaseRecord {
@@ -239,26 +245,20 @@ export interface ChatReply {
 export const MODULES: { id: Module; label: string; description: string; weight: number }[] = [
   {
     id: 'priorities',
-    label: 'Daily priorities',
-    description: 'Your top next actions from current tasks.',
-    weight: 2,
-  },
-  {
-    id: 'motivation',
-    label: 'Motivation',
-    description: 'A push to start what you have been avoiding.',
-    weight: 1,
+    label: 'Priorities & motivation',
+    description: 'Your next few tasks, and the push to start them.',
+    weight: 3,
   },
   {
     id: 'strategy',
     label: 'Strategic review',
-    description: 'Where your tasks and goals line up, and where they do not.',
+    description: 'Your goals: what is moving, what has stalled, what to change.',
     weight: 3,
   },
   {
     id: 'reflection',
     label: 'Reflection',
-    description: 'Think through one thing on your mind.',
+    description: 'A look back over your goals and what you have saved.',
     weight: 2,
   },
   {
@@ -280,6 +280,34 @@ export const MODULES: { id: Module; label: string; description: string; weight: 
     weight: 2,
   },
 ];
+/**
+ * Ids that no longer stand on their own, and the topic that absorbed them.
+ * Anything stored before the change still parses; it just lands in its new
+ * home. Kept as data so the next retirement is one more line.
+ */
+export const MERGED_MODULES: Partial<Record<Module, Module>> = { motivation: 'priorities' };
+/** Folds retired ids into their replacement and drops the duplicates that creates. */
+export function normalizeModules(modules: Module[]): Module[] {
+  return [...new Set(modules.map((m) => MERGED_MODULES[m] ?? m))];
+}
+/**
+ * What each topic is for, in the words the briefing writer is given. Module ids
+ * alone left too much to the model's reading of a label: "strategy" drifted
+ * into generic advice, and motivation into a pep talk detached from anything on
+ * the list. These are the briefs it works from.
+ */
+export const MODULE_BRIEFS: Record<Exclude<Module, 'motivation'>, string> = {
+  priorities:
+    'Work through the tasks in the packet in the order given — these are the ones the user has decided to do next, and this is the plan. For each, say what the next concrete move is. Then, about these same tasks, give the push to start: name what is likely making the first one hard to begin and hand them a way in that takes minutes. Motivation here is always about starting and finishing these named tasks; never a general pep talk, and never about work that is not on this list.',
+  strategy:
+    'Work from the goals in the packet. For each goal that matters right now, say where it actually stands, which of the listed tasks move it and which do not, and what has quietly stalled. Name one change to where the effort is going. Only goals and evidence in the packet — never invent progress.',
+  reflection:
+    'Look back across the goals and the memories in the packet rather than forward at the task list. What has changed since these were written, what keeps recurring, what no longer fits. Offer one honest observation and one question worth sitting with. Reflect on what is there; do not manufacture a revelation.',
+  relationships:
+    'Follow-ups and unresolved threads with the people in the packet. Who is owed something, what has gone quiet, what conversation is being put off.',
+  news: 'Cover the supplied news items only, briefly, and connect them to the user where the packet supports it. Every claim needs a source id.',
+  custom: 'Answer the custom subject directly, using the packet as evidence.',
+};
 export const DEFAULT_SETTINGS: Settings = {
   name: '',
   timezone: 'Australia/Melbourne',
@@ -302,7 +330,7 @@ export const DEFAULT_SETTINGS: Settings = {
   newsInterests: ['Artificial intelligence', 'Geopolitics', 'Melbourne local news'],
   transcriptHours: 0,
   episodeDays: 7,
-  defaultModules: ['priorities', 'motivation', 'strategy'],
+  defaultModules: ['priorities', 'strategy'],
   defaultMinutes: 6,
 };
 export const IMPORTANCE_LABELS: Record<Importance, string> = {

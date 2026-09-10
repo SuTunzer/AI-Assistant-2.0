@@ -19,6 +19,13 @@ import { Button, IconButton, Modal, Tag, Empty, SectionTitle } from '../componen
 const endpointFor = (t: Task) =>
   `tasks/${encodeURIComponent(t.listId)}/${encodeURIComponent(t.id)}`;
 /**
+ * A task painted into the list before Google has given it an id. It is on
+ * screen for a second or two; until it is reconciled there is nothing on the
+ * server to open, complete or reorder, so those controls stay out of the way.
+ */
+const PENDING_PREFIX = 'pending-';
+const isPending = (t: Task) => t.id.startsWith(PENDING_PREFIX);
+/**
  * Optimistic task writes, the pattern from the standalone task assistant:
  * paint the change into the cache now, send the write in the background,
  * swap in the server's copy when it lands, and only fall back to a full
@@ -156,23 +163,26 @@ export function Today() {
                   : orderedOpen
                       .filter((s) => s.listId === t.listId)
                       .findIndex((s) => s.id === t.id);
-                const movable = rank >= 0;
+                const pending = isPending(t);
+                const movable = rank >= 0 && !pending;
                 const siblingCount = orderedOpen.filter((s) => s.listId === t.listId).length;
                 return (
                   <div
                     key={t.listId + t.id}
-                    className={`task-row ${t.status === 'completed' ? 'done' : ''} ${t.parent ? 'child-task' : ''}`}
+                    className={`task-row ${t.status === 'completed' ? 'done' : ''} ${t.parent ? 'child-task' : ''} ${pending ? 'pending' : ''}`}
                   >
                     <button
                       className="task-check"
                       aria-label={`${t.status === 'completed' ? 'Reopen' : 'Complete'} ${t.title}`}
                       aria-pressed={t.status === 'completed'}
+                      disabled={pending}
                       onClick={() => void toggleComplete(t)}
                     >
                       {t.status === 'completed' && <Check size={13} />}
                     </button>
                     <button
                       className="task-body"
+                      disabled={pending}
                       onClick={() => setSelected({ id: t.id, listId: t.listId })}
                     >
                       <span>{t.title}</span>
@@ -207,6 +217,7 @@ export function Today() {
                     )}
                     <IconButton
                       label={`Open ${t.title}`}
+                      disabled={pending}
                       onClick={() => setSelected({ id: t.id, listId: t.listId })}
                     >
                       <ChevronRight size={20} />
@@ -467,37 +478,74 @@ function TaskDialog({ task: t, onClose }: { task: Task; onClose: () => void }) {
   );
 }
 export function NewTaskDialog({ onClose, existing }: { onClose: () => void; existing?: Proposal }) {
-  const { data, run } = useApp();
+  const { data, run, mutate, reload, setError, toast } = useApp();
   const [title, setTitle] = useState(existing?.title || ''),
     [notes, setNotes] = useState(existing?.notes || ''),
     [listId, setList] = useState(existing?.listId || data?.lists[0]?.id || '@default'),
-    [busy, setBusy] = useState(false),
-    [proposal, setProposal] = useState<Proposal | undefined>(existing);
+    [busy, setBusy] = useState(false);
+  // A suggestion the adviser raised is confirmed before it becomes a task. One
+  // the user typed here is not: they have already decided, so it is written in
+  // a single request, painted into the list straight away, and the dialog
+  // closes without waiting on Google.
+  const proposal = existing;
+  async function create() {
+    const value = { title: title.trim(), notes, listId, reason: 'An action you chose.' };
+    const pendingId = PENDING_PREFIX + crypto.randomUUID();
+    mutate((d) => ({
+      ...d,
+      tasks: [
+        {
+          ...value,
+          id: pendingId,
+          status: 'needsAction' as const,
+          position: '',
+          subtasks: [],
+          tags: [],
+          metadataValid: true,
+        },
+        ...d.tasks,
+      ],
+    }));
+    onClose();
+    try {
+      const created = await api<Proposal & { task?: Task }>('proposals', 'POST', {
+        ...value,
+        approve: true,
+      });
+      const task = created.task;
+      mutate((d) => ({
+        ...d,
+        tasks: task
+          ? d.tasks.map((t) => (t.id === pendingId ? task : t))
+          : d.tasks.filter((t) => t.id !== pendingId),
+        proposals: [created, ...d.proposals.filter((p) => p.id !== created.id)],
+      }));
+      toast('Added to your tasks.');
+      // Google answered without handing back the row it wrote; a refresh is
+      // the only way to find out what it actually created.
+      if (!task) void reload(true);
+    } catch (e) {
+      mutate((d) => ({ ...d, tasks: d.tasks.filter((t) => t.id !== pendingId) }));
+      setError(e instanceof Error ? e.message : 'That task could not be created.');
+    }
+  }
   return (
     <Modal title={proposal ? 'Confirm new task' : 'New task'} onClose={onClose}>
       <form
         className="modal-content"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (!title.trim()) return;
+          // The typed path closes the dialog itself and finishes in the
+          // background, so there is nothing here to keep a spinner for.
+          if (!proposal) return void create();
           setBusy(true);
-          if (proposal) {
-            const accepted = await run(
-              () => api(`proposals/${proposal.id}/approve`, 'POST', { title, notes, listId }),
-              'Added to your tasks.',
-            );
-            if (accepted) onClose();
-          } else {
-            const p = await run(() =>
-              api<Proposal>('proposals', 'POST', {
-                title,
-                notes,
-                listId,
-                reason: 'An action you chose.',
-              }),
-            );
-            if (p) setProposal(p);
-          }
+          const accepted = await run(
+            () => api(`proposals/${proposal.id}/approve`, 'POST', { title, notes, listId }),
+            'Added to your tasks.',
+          );
           setBusy(false);
+          if (accepted) onClose();
         }}
       >
         <label className="field">
@@ -533,16 +581,8 @@ export function NewTaskDialog({ onClose, existing }: { onClose: () => void; exis
           </p>
         )}
         <Button type="submit" busy={busy} disabled={!title.trim()}>
-          {proposal ? (
-            <>
-              <Check size={16} />
-              Confirm and add task
-            </>
-          ) : (
-            <>
-              Review task <ArrowRight size={16} />
-            </>
-          )}
+          <Check size={16} />
+          {proposal ? 'Confirm and add task' : 'Add task'}
         </Button>
       </form>
     </Modal>

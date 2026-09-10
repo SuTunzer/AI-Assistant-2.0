@@ -15,7 +15,7 @@ import {
   LoaderCircle,
   RefreshCw,
 } from 'lucide-react';
-import { MODULES, type Module, type Episode, type Template } from '../types';
+import { MODULES, normalizeModules, type Module, type Episode, type Template } from '../types';
 import { useApp } from '../context';
 import { api, appMode } from '../lib/api';
 import { usePlayer, time } from '../player';
@@ -35,7 +35,7 @@ export function Listen() {
   const { data, run, reload, setError, toast } = useApp();
   const player = usePlayer();
   const [modules, setModules] = useState<Module[]>(
-      data?.settings.defaultModules || ['priorities', 'motivation', 'strategy'],
+      normalizeModules(data?.settings.defaultModules || ['priorities', 'strategy']),
     ),
     [minutes, setMinutes] = useState(data?.settings.defaultMinutes || 6),
     [custom, setCustom] = useState(''),
@@ -65,7 +65,7 @@ export function Listen() {
     setBusy(false);
   }
   function preset(t: Template) {
-    setModules(t.modules);
+    setModules(normalizeModules(t.modules));
     setMinutes(t.minutes);
     setCustom(t.custom);
     toast('Mix loaded.');
@@ -153,7 +153,7 @@ export function Listen() {
               ))}
             </div>
             <p className="small muted">
-              A target length; the finished narration may vary slightly.
+              The briefing is written to this length. Narration lands within a few seconds of it.
             </p>
           </div>
           <div className="mix-footer">

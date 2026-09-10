@@ -106,17 +106,24 @@ export function fromGoogleTask(listId: string, g: Record<string, any>): Task {
   };
 }
 /**
- * The tasks a briefing may speak about: the top of the user’s own priority
- * order, plus the native children of those tasks. The list order is the
- * priority order, so this is a cut from the top rather than a ranking. Scaled
- * gently by length — a longer briefing earns a couple more, never the whole
- * backlog, because the point is what to do next.
+ * How many top-level tasks count as "what I am doing next". The top of the
+ * list is where the user puts the work they have already decided on, so every
+ * place that speaks about open tasks — briefings, the adviser, the reflection
+ * pass — works from this handful rather than from the backlog. Advice about
+ * the twentieth task is advice about something they have not chosen yet.
  */
-export function topPriorityTasks(tasks: Task[], minutes: number): Task[] {
+export const NEXT_TASK_COUNT = 5;
+/**
+ * The tasks a briefing or the adviser may speak about: the top of the user’s
+ * own priority order, plus the native children of those tasks. The list order
+ * is the priority order, so this is a cut from the top rather than a ranking.
+ * A very short briefing narrows further; nothing widens it past the top five.
+ */
+export function topPriorityTasks(tasks: Task[], minutes = 30): Task[] {
   const open = tasks.filter((t) => t.status === 'needsAction');
   const focus = open
     .filter((t) => !t.parent)
-    .slice(0, Math.max(3, Math.min(8, Math.ceil(minutes / 2))));
+    .slice(0, Math.max(3, Math.min(NEXT_TASK_COUNT, Math.ceil(minutes / 2))));
   const ids = new Set(focus.map((t) => t.id));
   return open.filter((t) => ids.has(t.id) || (t.parent ? ids.has(t.parent) : false));
 }

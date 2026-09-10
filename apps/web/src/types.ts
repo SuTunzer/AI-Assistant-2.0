@@ -1,6 +1,7 @@
 export * from '../../../packages/domain/src/types';
 export {
   MODULES,
+  normalizeModules,
   MEMORY_LABELS,
   IMPORTANCE_LABELS,
   DEFAULT_SETTINGS,

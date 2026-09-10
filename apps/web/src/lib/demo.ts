@@ -9,6 +9,24 @@ const base = () => {
 export async function demoRequest<T>(path: string, method = 'GET', body: any = {}): Promise<T> {
   cached ??= (await localGet<Bootstrap>('state', 'demo')) || demoSeed();
   const state = cached;
+  /** Turns a pending proposal into a task, the preview's stand-in for Google. */
+  const accept = (proposal: Proposal) => {
+    proposal.status = 'accepted';
+    proposal.taskId = crypto.randomUUID();
+    state.tasks.unshift({
+      id: proposal.taskId,
+      listId: proposal.listId || 'personal',
+      title: proposal.title,
+      notes: proposal.notes,
+      status: 'needsAction',
+      position: '0000',
+      subtasks: [],
+      tags: [],
+      metadataValid: true,
+      due: proposal.due,
+    });
+    return proposal;
+  };
   const p = path.split('?')[0].split('/').filter(Boolean);
   let result: any = {};
   if (p[0] === 'bootstrap') result = state;
@@ -127,28 +145,17 @@ export async function demoRequest<T>(path: string, method = 'GET', body: any = {
     }
   } else if (p[0] === 'proposals') {
     if (p.length === 1) {
-      const proposal: Proposal = { ...base(), ...body, status: 'pending' };
+      const { approve, ...value } = body as Record<string, any>;
+      const proposal = { ...base(), ...value, status: 'pending' } as Proposal;
       state.proposals.unshift(proposal);
-      result = proposal;
+      // Mirrors the server: a task the user typed is created in the same call.
+      result = approve ? { ...accept(proposal), task: state.tasks[0] } : proposal;
     } else {
       const proposal = state.proposals.find((x) => x.id === p[1]);
       if (!proposal) throw Error('Suggestion not found.');
       if (p[2] === 'approve' && proposal.status === 'pending') {
         Object.assign(proposal, body);
-        proposal.status = 'accepted';
-        proposal.taskId = crypto.randomUUID();
-        state.tasks.unshift({
-          id: proposal.taskId,
-          listId: proposal.listId || 'personal',
-          title: proposal.title,
-          notes: proposal.notes,
-          status: 'needsAction',
-          position: '0000',
-          subtasks: [],
-          tags: [],
-          metadataValid: true,
-          due: proposal.due,
-        });
+        accept(proposal);
       } else if (p[2] === 'dismiss') proposal.status = 'dismissed';
       result = proposal;
     }

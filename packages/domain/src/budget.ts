@@ -32,7 +32,10 @@ export function toAud(usd: number, s: Settings) {
   return Math.ceil(usd * s.usdToAud * s.costBuffer * 10000) / 10000;
 }
 export function episodeEstimate(s: Settings, minutes: number, news = false) {
-  const text = textCost(s.adviceModel, 8000, 1200 + minutes * 230);
+  // Two write passes, because a draft that comes back short of the chosen
+  // length is sent back once to be written out properly. The reservation has
+  // to cover the case where that happens.
+  const text = textCost(s.adviceModel, 8000, 1200 + minutes * 230) * 2;
   const voice =
     minutes *
     (s.voiceProvider === 'openai'
